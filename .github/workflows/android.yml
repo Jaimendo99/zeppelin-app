@@ -16,47 +16,50 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       
-    - name: set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+    - name: Print Env
+      uses: echo ${{ secrets.ANDROID_KEYSTORE }}
+      
+    # - name: set up JDK 11
+    #   uses: actions/setup-java@v4
+    #   with:
+    #     java-version: '17'
+    #     distribution: 'temurin'
+    #     cache: gradle
         
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v2
+    # - name: Set up Android SDK
+    #   uses: android-actions/setup-android@v2
 
-    - name: Cache Gradle dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.gradle/caches
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: ${{ runner.os }}-gradle
+    # - name: Cache Gradle dependencies
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ~/.gradle/caches
+    #     key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+    #     restore-keys: ${{ runner.os }}-gradle
         
-    - name: Debug keystore secret length
-      run: echo "Keystore secret length:$(printf '%s' "$ANDROID_KEYSTORE" | wc -c)"
-      env:
-        ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+    # - name: Debug keystore secret length
+    #   run: echo "Keystore secret length:$(printf '%s' "$ANDROID_KEYSTORE" | wc -c)"
+    #   env:
+    #     ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
 
-    - name: Decode keystore file
-      run: |
-        printf "%s" "$ANDROID_KEYSTORE" | base64 --decode > my-release-key.jks
-        ls -lh my-release-key.jks  
-      env:
-        ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+    # - name: Decode keystore file
+    #   run: |
+    #     printf "%s" "$ANDROID_KEYSTORE" | base64 --decode > my-release-key.jks
+    #     ls -lh my-release-key.jks  
+    #   env:
+    #     ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
 
 
-    - name: Build Signed APK
-      run: |
-        ./gradlew clean assembleRelease \
-          -Pandroid.injected.signing.store.file=$(pwd)/my-release-key.jks \
-          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-          -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+    # - name: Build Signed APK
+    #   run: |
+    #     ./gradlew clean assembleRelease \
+    #       -Pandroid.injected.signing.store.file=$(pwd)/my-release-key.jks \
+    #       -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+    #       -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+    #       -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: signed-apk
-        path: app/build/outputs/apk/release/app-release.apk
+    # - name: Upload APK Artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: signed-apk
+    #     path: app/build/outputs/apk/release/app-release.apk
       
