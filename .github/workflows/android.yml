@@ -47,7 +47,7 @@ jobs:
           -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
     - name: Upload APK Artifact
-      uses: actions/upload-artifact@v3.1.0
+      uses: actions/upload-artifact@v4
       with:
         name: signed-apk
         path: app/build/outputs/apk/release/app-release.apk
