@@ -34,10 +34,10 @@ jobs:
         
     - name: Decode keystore file
       run: |
-        printf "%s" "$KEYSTORE_BASE64" | base64 --decode > my-release-key.jks
+        printf "%s" "$ANDROID_KEYSTORE" | base64 --decode > my-release-key.jks
         ls -lh my-release-key.jks  
       env:
-        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
 
 
     - name: Build Signed APK
