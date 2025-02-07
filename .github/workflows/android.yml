@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      run: actions/checkout@v4
       
     - name: Print Env
       uses: echo ${{ secrets.ANDROID_KEYSTORE }}
