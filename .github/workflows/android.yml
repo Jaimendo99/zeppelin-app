@@ -9,17 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
       
-    - name: Print Env
-      run: echo ${{ secrets.ANDROID_KEYSTORE }}
-      
-    - name: set up JDK 11
+    - name: set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
@@ -29,17 +24,12 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v2
 
-    - name: Cache Gradle dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.gradle/caches
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: ${{ runner.os }}-gradle
-        
-    - name: Debug keystore secret length
-      run: echo "Keystore secret length:$(printf '%s' "$ANDROID_KEYSTORE" | wc -c)"
-      env:
-        ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+    # - name: Cache Gradle dependencies
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ~/.gradle/caches
+    #     key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+    #     restore-keys: ${{ runner.os }}-gradle
 
     - name: Decode keystore file
       run: |
