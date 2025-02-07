@@ -32,6 +32,11 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: ${{ runner.os }}-gradle
         
+    - name: Debug keystore secret length
+      run: echo "Keystore secret length:$(printf '%s' "$ANDROID_KEYSTORE" | wc -c)"
+      env:
+        ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+
     - name: Decode keystore file
       run: |
         printf "%s" "$ANDROID_KEYSTORE" | base64 --decode > my-release-key.jks
