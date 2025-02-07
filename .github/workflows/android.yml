@@ -13,21 +13,21 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-      
+
     - name: set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+
     - name: Set up Android SDK
-      uses: android-actions/setup-android@v2
+      uses: android-actions/setup-android@v3
 
 
     - name: Decode keystore file
       run: |
         printf "%s" "$ANDROID_KEYSTORE" | base64 --decode > my-release-key.jks
-        ls -lh my-release-key.jks  
+        ls -lh my-release-key.jks
       env:
         ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
 
@@ -40,9 +40,27 @@ jobs:
           -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
           -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
+    - name: Subir APK y release.json a Cloudflare R2
+      uses: ryand56/r2-upload-action@latest
+      with:
+        r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+        r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+        r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        r2-bucket: ${{ secrets.R2_BUCKET }}
+        source-dir: app/build/outputs/apk/release/*
+        destination-dir: ./
+        keep-file-fresh: 'true'
+
+
+    - name: Purge Cloudflare Cache
+      run: |
+          curl --location 'https://api.cloudflare.com/client/v4/zones/14557353066a70f0e562ee759256b9c9/purge_cache' \
+          -H "Authorization: Bearer ${{ secrets.CACHE_PURGE_TOKEN }}" \
+          --data '{"purge_everything": true}' \
+
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: signed-apk
         path: app/build/outputs/apk/release/app-release.apk
-      
+

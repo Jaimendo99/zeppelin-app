@@ -36,7 +36,6 @@ class MainActivity : ComponentActivity() {
                             onClick = { viewModel.nextCharacter() },
                             enabled = !loadingState.value
                         ) { Text("Next Character") }
-
                     }
                 }
             }
