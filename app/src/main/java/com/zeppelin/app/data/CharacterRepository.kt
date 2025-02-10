@@ -1,5 +1,5 @@
 package com.zeppelin.app.data
 
-interface CharacterRepository {
+fun interface CharacterRepository {
     suspend fun getCharacter(id: Int) : Character
 }
