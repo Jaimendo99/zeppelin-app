@@ -36,5 +36,10 @@ class CharacterViewModel(
         getCharacter(_characterId)
     }
 
+    fun previousCharacter() {
+        _characterId--
+        getCharacter(_characterId)
+    }
+
 
 }

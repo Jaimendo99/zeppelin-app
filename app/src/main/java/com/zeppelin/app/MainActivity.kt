@@ -5,14 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.zeppelin.app.presentation.CharacterUI
 import com.zeppelin.app.presentation.CharacterViewModel
 import com.zeppelin.app.ui.theme.ZeppelinTheme
@@ -32,10 +34,18 @@ class MainActivity : ComponentActivity() {
 
                     Column(modifier = Modifier.padding(innerPadding)) {
                         CharacterUI(characterState.value ?: return@Column, loadingState.value)
-                        Button(
-                            onClick = { viewModel.nextCharacter() },
-                            enabled = !loadingState.value
-                        ) { Text("Next Character") }
+
+                        Row(modifier = Modifier.padding(16.dp)) {
+                            Button(
+                                onClick = { viewModel.previousCharacter() },
+                                enabled = !loadingState.value
+                            ) { Text("Previous") }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Button(
+                                onClick = { viewModel.nextCharacter() },
+                                enabled = !loadingState.value
+                            ) { Text("Next") }
+                        }
                     }
                 }
             }
