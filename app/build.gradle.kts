@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlinxserialization)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -75,5 +76,8 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.serialization)
     implementation(libs.ktor.serialization.json)
+
+    implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
+    implementation("com.google.firebase:firebase-messaging")
 
 }
