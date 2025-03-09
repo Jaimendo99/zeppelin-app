@@ -1,4 +1,4 @@
-package com.zeppelin.app.presentation
+package com.zeppelin.app.rickandmorty.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,11 +28,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.zeppelin.app.data.Character
-import com.zeppelin.app.data.CharacterGender
-import com.zeppelin.app.data.CharacterStatus
-import com.zeppelin.app.data.Location
-import com.zeppelin.app.data.Origin
+import com.zeppelin.app.rickandmorty.data.Character
+import com.zeppelin.app.rickandmorty.data.CharacterGender
+import com.zeppelin.app.rickandmorty.data.CharacterStatus
+import com.zeppelin.app.rickandmorty.data.Location
+import com.zeppelin.app.rickandmorty.data.Origin
 
 
 @Composable

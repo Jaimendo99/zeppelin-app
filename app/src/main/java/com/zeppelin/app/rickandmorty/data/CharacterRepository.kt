@@ -1,4 +1,4 @@
-package com.zeppelin.app.data
+package com.zeppelin.app.rickandmorty.data
 
 fun interface CharacterRepository {
     suspend fun getCharacter(id: Int) : Character

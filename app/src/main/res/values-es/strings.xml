@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">zeppelin</string>
+    <string name="loginButton">Iniciar Sesión</string>
+    <string name="loginButtonError">Reintentar</string>
+    <string name="welcome_to_focused">¡Bienvenido a Focused!</string>
+    <string name="please_log_in_with_your_student_email">Por favor, inicia sesión con tu correo estudiantil.</string>
+</resources>
