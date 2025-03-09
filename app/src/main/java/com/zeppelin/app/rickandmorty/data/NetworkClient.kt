@@ -1,4 +1,4 @@
-package com.zeppelin.app.data
+package com.zeppelin.app.rickandmorty.data
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO

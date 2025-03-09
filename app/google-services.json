@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "175265744134",
+    "project_id": "zeppelin-app-859e0",
+    "storage_bucket": "zeppelin-app-859e0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:175265744134:android:04714c105551fda62fca87",
+        "android_client_info": {
+          "package_name": "com.zeppelin.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQh_RfUsXj4lJ9od4gQEuq7a_PqLYoxtk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

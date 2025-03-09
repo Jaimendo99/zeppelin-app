@@ -1,4 +1,4 @@
-package com.zeppelin.app.data
+package com.zeppelin.app.rickandmorty.data
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Serializer
@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializer
 data class Character(
     val id :Int,
     val name :String,
-    val status :CharacterStatus,
+    val status : CharacterStatus,
     val species :String,
     val type :String,
     val gender: CharacterGender,

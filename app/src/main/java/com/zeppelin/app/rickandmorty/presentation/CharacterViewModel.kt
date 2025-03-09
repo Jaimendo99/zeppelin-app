@@ -1,9 +1,9 @@
-package com.zeppelin.app.presentation
+package com.zeppelin.app.rickandmorty.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zeppelin.app.data.Character
-import com.zeppelin.app.data.CharacterRepository
+import com.zeppelin.app.rickandmorty.data.Character
+import com.zeppelin.app.rickandmorty.data.CharacterRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,7 @@ class CharacterViewModel(
     private val _loadingState = MutableStateFlow(true)
     val loadingState: Flow<Boolean> = _loadingState
 
-    private var _characterId: Int = 1
+    private var _characterId: Int = 300
     init {
         getCharacter(_characterId)
     }
@@ -40,6 +40,4 @@ class CharacterViewModel(
         _characterId--
         getCharacter(_characterId)
     }
-
-
 }

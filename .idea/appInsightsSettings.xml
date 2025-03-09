@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.zeppelin.app" />
+                  <option name="mobileSdkAppId" value="1:175265744134:android:04714c105551fda62fca87" />
+                  <option name="projectId" value="zeppelin-app-859e0" />
+                  <option name="projectNumber" value="175265744134" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
