@@ -1,7 +1,6 @@
 package com.zeppelin.app.screens.auth.domain
 
 import android.util.Log
-import com.zeppelin.app.screens.auth.ui.Logo
 import io.ktor.client.call.body
 import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException

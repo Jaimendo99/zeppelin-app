@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
-import com.zeppelin.app.screens.auth.ui.Logo
 import com.zeppelin.app.screens.nav.Screens
 
 @Composable
