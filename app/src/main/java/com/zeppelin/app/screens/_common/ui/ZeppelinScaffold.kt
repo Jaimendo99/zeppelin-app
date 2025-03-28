@@ -51,7 +51,7 @@ fun ZeppelinScaffold(
             8.dp,
             innerPadding.calculateBottomPadding()
         )
-        content(padding, navController)
+        content(innerPadding, navController)
     }
 }
 
