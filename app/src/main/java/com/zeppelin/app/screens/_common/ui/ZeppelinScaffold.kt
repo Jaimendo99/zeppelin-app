@@ -2,10 +2,9 @@ package com.zeppelin.app.screens._common.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,8 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -36,22 +33,25 @@ fun ZeppelinScaffold(
     navController: NavHostController,
     content: @Composable (PaddingValues, NavHostController) -> Unit
 ) {
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val currentRoute =
+        navController.currentBackStackEntryAsState().value?.destination?.route
     Scaffold(
+        // Set the content padding to account for system bars content
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             ZeppelinTopBar(
-                currentRoute,
-                navController,
-                { viewModel.onProfileLongPressed() })
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .imePadding()
-                .padding(top = 16.dp, start = 8.dp, end = 8.dp, bottom = 8.dp)
-        ) {
-            content(padding, navController)
-        }
+                screen = currentRoute,
+                navController = navController,
+                onProfileLongPressed = { viewModel.onProfileLongPressed() })
+        },
+    ) { innerPadding ->
+        val padding = PaddingValues(
+            8.dp,
+            innerPadding.calculateTopPadding(),
+            8.dp,
+            innerPadding.calculateBottomPadding()
+        )
+        content(padding, navController)
     }
 }
 
@@ -62,11 +62,15 @@ fun ZeppelinTopBar(
     onProfileLongPressed: () -> Unit
 ) {
     val state = when (screen) {
-        Screens.Courses.route, Screens.CourseDetail.route, Screens.CourseSession.route -> true
+        Screens.Courses.route,
+        Screens.CourseDetail.route,
+        Screens.CourseSession.route -> true
+
         else -> false
     }
     AnimatedContent(
-        targetState = state,
+        targetState =
+        state,
         label = "topBarAnimation",
     ) { targetScreen ->
         if (targetScreen) {
@@ -95,19 +99,23 @@ private fun TopBarBuffer(
             Logo(
                 modifier = Modifier
                     .clickable(onClick = {
-                        navController.navigate(Screens.Courses.route) {
+                        navController.navigate(
+                            Screens.Courses.route
+                        ) {
                             launchSingleTop = true
                             popUpTo(Screens.Courses.route) { inclusive = true }
                         }
                     })
-
                     .size(100.dp)
             )
         },
         navigationIcon = {
             if (title != Screens.Courses.title && title != Screens.Login.title && title != Screens.Profile.title) {
                 IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back"
+                    )
                 }
             }
         },
@@ -123,22 +131,6 @@ private fun TopBarBuffer(
                     placeholder = rememberVectorPainter(Icons.Rounded.Face)
                 )
             }
-        }
-    )
+        })
 }
 
-//@Preview
-//@Composable
-//fun ZeppelinScaffoldPreview() {
-//    Scaffold(
-//        topBar = {
-//            ZeppelinTopBar(
-//                Screens.CourseSession.route,
-//                NavHostController(LocalContext.current)
-//            )
-//        }
-//    ) {
-//        Box(modifier = Modifier.padding(it))
-//    }
-//}
-//

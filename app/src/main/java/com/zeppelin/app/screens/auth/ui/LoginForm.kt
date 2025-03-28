@@ -136,14 +136,13 @@ fun EmailField(
                 tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondaryContainer
             )
         },
-        placeholder = { Text("email name") },
         label = { Text("Email") },
         singleLine = true,
         isError = isError,
         suffix = {
             Text(
                 text = "@uda.edu.ec",
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
         },
         keyboardOptions = KeyboardOptions(

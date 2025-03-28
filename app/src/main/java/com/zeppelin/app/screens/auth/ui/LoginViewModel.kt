@@ -10,7 +10,6 @@ import com.zeppelin.app.screens.auth.data.LoginEventsType
 import com.zeppelin.app.screens.auth.data.SignInResponse
 import com.zeppelin.app.screens.auth.domain.AuthManager
 import com.zeppelin.app.screens.auth.domain.NetworkResult
-import com.zeppelin.app.screens.nav.Screens
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
