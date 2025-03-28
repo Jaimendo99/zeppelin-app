@@ -1,10 +1,13 @@
 package com.zeppelin.app.screens.auth.domain
 
+import android.util.Log
 import com.zeppelin.app.screens.auth.data.AuthPreferences
+import com.zeppelin.app.screens.auth.ui.LoginScreen
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class AuthManager(private val authPreferences: AuthPreferences) {
+
     suspend fun isTokenValid(): Boolean {
         val token = authPreferences.getAuthTokenOnce()
         return token != null && !isTokenExpired(token)
@@ -36,8 +39,10 @@ class AuthManager(private val authPreferences: AuthPreferences) {
 
     // Observe authentication state as a Flow
     fun observeAuthState(): Flow<Boolean> {
-        return authPreferences.getToken().map { token ->
+        val state = authPreferences.getToken().map { token ->
+            Log.d("AuthManager", "observeAuthState: $token, ${!isTokenExpired(token?:"")}")
             token != null && !isTokenExpired(token)
         }
+        return state
     }
 }

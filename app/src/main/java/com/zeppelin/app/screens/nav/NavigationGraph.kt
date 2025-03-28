@@ -1,5 +1,7 @@
 package com.zeppelin.app.screens.nav
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
@@ -32,27 +34,33 @@ fun NavigationGraph(
         modifier = modifier,
         navController = navController,
         startDestination = if (isAuthenticated.value) "main" else "auth",
+//        startDestination =  "main",
     ) {
-        // Auth navigation graph
         navigation(startDestination = Screens.Login.route, route = "auth") {
             composable(Screens.Login.route) {
                 LoginScreen(
-                    loginViewModel = koinViewModel<LoginViewModel>(),
-                    navController = navController
+                    Modifier
+                        .fillMaxSize()
+                        .imePadding(),
+                    koinViewModel<LoginViewModel>(),
+                    navController
                 )
             }
         }
 
-        // Main app navigation graph (authenticated routes)
         navigation(startDestination = Screens.Courses.route, route = "main") {
             composable(Screens.Courses.route) {
-                CoursesScreen(courseViewModel = CourseViewModel(navController))
+                CoursesScreen(
+                    courseViewModel = koinViewModel<CourseViewModel>(),
+                    navController = navController
+                )
             }
 
             composable(Screens.CourseDetail.route) { backStackEntry ->
                 backStackEntry.arguments?.getString("id")?.let { id ->
                     CourseDetailScreen(
-                        id = id, courseViewModel = CourseDetailsViewModel(navController)
+                        id = id,
+                        courseViewModel = CourseDetailsViewModel(navController)
                     )
                 }
             }
