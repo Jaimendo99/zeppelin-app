@@ -33,8 +33,8 @@ fun NavigationGraph(
     NavHost(
         modifier = modifier,
         navController = navController,
-        startDestination = if (isAuthenticated.value) "main" else "auth",
-//        startDestination =  "main",
+//        startDestination = if (isAuthenticated.value) "main" else "auth",
+        startDestination =  "main",
     ) {
         navigation(startDestination = Screens.Login.route, route = "auth") {
             composable(Screens.Login.route) {
@@ -60,7 +60,8 @@ fun NavigationGraph(
                 backStackEntry.arguments?.getString("id")?.let { id ->
                     CourseDetailScreen(
                         id = id,
-                        courseViewModel = CourseDetailsViewModel(navController)
+                        courseViewModel = koinViewModel<CourseDetailsViewModel>(),
+                        navController = navController
                     )
                 }
             }

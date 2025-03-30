@@ -2,9 +2,9 @@ package com.zeppelin.app.screens.courses.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zeppelin.app.screens.auth.domain.toCourseCardData
 import com.zeppelin.app.screens.courses.data.CourseCardData
 import com.zeppelin.app.screens.courses.data.ICoursesRepository
+import com.zeppelin.app.screens.courses.domain.toCourseCardData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class CourseViewModel(
     private val repository: ICoursesRepository
-) : ViewModel(){
+) : ViewModel() {
 
     private val _courses = MutableStateFlow<List<CourseCardData>>(emptyList())
     val courses: StateFlow<List<CourseCardData>> = _courses
@@ -42,12 +42,10 @@ class CourseViewModel(
     }
 
     private suspend fun onProfileClick() {
-        viewModelScope.launch {
-            _events.emit("profile")
-        }
+        _events.emit("profile")
     }
 
-    fun  onCourseClick(courseId: Int) {
+    fun onCourseClick(courseId: Int) {
         viewModelScope.launch {
             _enableClick.value = false
             _events.emit("courseDetail/$courseId")
