@@ -5,4 +5,8 @@
     <string name="loginButtonError">Reintentar</string>
     <string name="welcome_to_focused">¡Bienvenido a Focused!</string>
     <string name="please_log_in_with_your_student_email">Por favor, inicia sesión con tu correo estudiantil.</string>
+    <string name="content">Contenido</string>
+    <string name="test">Cuestionarios</string>
+    <string name="grades">Calificaciones</string>
+    <string name="progress">Progreso</string>
 </resources>

@@ -4,4 +4,8 @@
     <string name="loginButtonError">Retry</string>
     <string name="welcome_to_focused">¡Welcome to Focused!</string>
     <string name="please_log_in_with_your_student_email">Please Log in with your student email.</string>
+    <string name="content">Content</string>
+    <string name="test">Tests</string>
+    <string name="grades">Grades</string>
+    <string name="progress">Progress</string>
 </resources>

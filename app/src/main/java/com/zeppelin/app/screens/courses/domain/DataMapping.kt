@@ -1,4 +1,4 @@
-package com.zeppelin.app.screens.auth.domain
+package com.zeppelin.app.screens.courses.domain
 
 import com.zeppelin.app.screens.courses.data.CourseCardData
 import com.zeppelin.app.screens.courses.data.CoursesData
