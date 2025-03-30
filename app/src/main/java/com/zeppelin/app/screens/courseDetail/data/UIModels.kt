@@ -3,8 +3,8 @@ package com.zeppelin.app.screens.courseDetail.data
 
 data class CourseDetailUI(
     val id: Int = 0,
+    val subject: String = "",
     val course: String = "",
-    val title: String = "",
     val description: String = "",
     val imageUrl: String = "",
     val grades: List<GradeUI> = listOf(),

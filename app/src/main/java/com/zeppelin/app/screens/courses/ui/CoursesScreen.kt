@@ -1,12 +1,9 @@
 package com.zeppelin.app.screens.courses.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -27,25 +24,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.integerResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -57,8 +43,9 @@ import com.zeppelin.app.ui.theme.ZeppelinTheme
 
 @Composable
 fun CoursesScreen(
+    modifier: Modifier = Modifier,
     courseViewModel: CourseViewModel,
-    navController: NavController
+    navController: NavController,
 ) {
     val courses = courseViewModel.courses.collectAsState()
     val loading = courseViewModel.loading.collectAsState()
@@ -73,16 +60,16 @@ fun CoursesScreen(
         transitionSpec = { fadeIn() togetherWith fadeOut() }
     ) { targetLoading ->
         when (targetLoading) {
-            true -> LoadingCards(modifier = Modifier.padding(horizontal = 8.dp))
+            true -> LoadingCards(modifier = modifier.padding(horizontal = 8.dp))
             false -> CourseList(
                 courses = courses.value,
                 onCourseClick = { id ->
                     courseViewModel.onCourseClick(id)
                 },
                 enableClick = enableClick.value,
-                modifier = Modifier
+                modifier = modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 8.dp),
             )
         }
     }
@@ -91,6 +78,7 @@ fun CoursesScreen(
 
 
 // --- CourseList ---
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CourseList(
     courses: List<CourseCardData>,
@@ -98,25 +86,25 @@ fun CourseList(
     enableClick: Boolean,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier.imePadding(),
-        contentPadding = PaddingValues(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        items(courses.size) { index ->
-            CourseCard(
-                courseCardData = courses[index], enableCLick = enableClick
-            ) { id ->
-                onCourseClick(id)
+        LazyColumn(
+            modifier = modifier.imePadding(),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            items(courses.size) { index ->
+                CourseCard(
+                    courseCardData = courses[index], enableCLick = enableClick
+                ) { id ->
+                    onCourseClick(id)
+                }
+            }
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-    }
 }
 
 @Composable
@@ -176,9 +164,6 @@ fun CourseCardLoading() {
         }
     }
 }
-
-
-
 
 
 @Preview(showBackground = true)

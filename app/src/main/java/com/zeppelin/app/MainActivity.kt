@@ -8,7 +8,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -48,3 +52,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+data class SharedTransitionScopes(
+    val animatedVisibilityScope: AnimatedVisibilityScope,
+    val sharedTransitionScope: SharedTransitionScope
+)
+val LocalSharedTransitionScopes =
+    compositionLocalOf<SharedTransitionScopes> {
+        error("SharedTransitionScopes not provided")
+    }

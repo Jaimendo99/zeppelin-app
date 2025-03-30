@@ -1,6 +1,7 @@
 package com.zeppelin.app.screens.courseDetail.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.zeppelin.app.LocalSharedTransitionScopes
 import com.zeppelin.app.screens._common.ui.ButtonWithLoader
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.data.CourseProgressUI
@@ -46,7 +48,7 @@ fun CourseDetailScreen(
     modifier: Modifier = Modifier,
     id: String,
     courseViewModel: CourseDetailsViewModel,
-    navController: NavController
+    navController: NavController,
 ) {
 
     val courseDetail = courseViewModel.courseDetail.collectAsState().value
@@ -63,93 +65,107 @@ fun CourseDetailScreen(
     AnimatedContent(targetState = loading,
         transitionSpec = { fadeIn() togetherWith fadeOut() }) { isLoading ->
         if (!isLoading) {
-            if (courseDetail != null) CourseScreenLayout(courseDetail)
+            if (courseDetail != null) CourseScreenLayout(modifier, courseDetail)
             else Box(modifier = Modifier.fillMaxSize()) { Text("Error loading course detail") }
-        } else CourseScreenLayout(isLoading = true)
+        } else CourseScreenLayout(modifier, isLoading = true)
 
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CourseScreenLayout(
+    modifier: Modifier = Modifier,
     courseDetailUI: CourseDetailUI = CourseDetailUI(),
     onStartSessionClick: () -> Unit = {},
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .zIndex(1f)
-            ) {
-                if (!isLoading) {
+    val transScope = LocalSharedTransitionScopes.current
+    with(transScope.sharedTransitionScope) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .sharedElement(
+                            state = rememberSharedContentState(courseDetailUI.imageUrl),
+                            animatedVisibilityScope = transScope.animatedVisibilityScope
+                        )
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .zIndex(1f)
+                ) {
                     AsyncImage(
                         model = courseDetailUI.imageUrl,
                         contentDescription = null,
-                        modifier = Modifier
+                        modifier = modifier
                             .fillMaxWidth()
                             .matchParentSize()
-                            .blur(radius = 8.dp),
+                            .blur(radius = 8.dp)
+                        ,
                         contentScale = ContentScale.Crop,
                         clipToBounds = true,
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.4f))
+                    )
+
+                    CourseDetailHeader(
+                        modifier = Modifier.padding(
+                            top = 16.dp,
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 40.dp
+                                )
+                        ,
+                        course = courseDetailUI.course,
+                        description = courseDetailUI.description,
+                        subject = courseDetailUI.subject,
+                        id = courseDetailUI.id,
+                        isLoading = isLoading
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.Black.copy(alpha = 0.4f))
-                )
-
-                CourseDetailHeader(
-                    modifier = Modifier.padding(
-                        top = 16.dp,
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = 40.dp
-                    ),
-                    title = courseDetailUI.title,
-                    description = courseDetailUI.description,
-                    course = courseDetailUI.course,
-                    isLoading = isLoading
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .offset(y = (-24).dp)
-                    .clip(RoundedCornerShape(topStartPercent = 5, topEndPercent = 5))
-                    .background(MaterialTheme.colorScheme.background)
-                    .zIndex(2f)
-                    .fillMaxSize()
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        GradesCard(
-                            modifier = Modifier.padding(16.dp),
-                            courseDetailUI.grades,
-                            isLoading
+                        .sharedElement(
+                            state = rememberSharedContentState(courseDetailUI.id),
+                            animatedVisibilityScope = transScope.animatedVisibilityScope
                         )
-                        CourseProgress(
-                            modifier = Modifier.padding(16.dp),
-                            courseDetailUI.progress,
-                            isLoading
-                        )
-                    }
-                    ButtonWithLoader(
-                        modifier = Modifier.padding(bottom = 24.dp),
-                        isLoading = isLoading,
-                        onLongPress = { onStartSessionClick() }
-                    ) {
-                        Row {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null)
-                            Text("Start Session")
+                        .offset(y = (-24).dp)
+                        .clip(RoundedCornerShape(topStartPercent = 5, topEndPercent = 5))
+                        .background(MaterialTheme.colorScheme.background)
+                        .zIndex(2f)
+                        .fillMaxSize()
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            GradesCard(
+                                modifier = Modifier.zIndex(3f).padding(16.dp),
+                                courseDetailUI.grades,
+                                isLoading
+                            )
+                            CourseProgress(
+                                modifier = Modifier.zIndex(3f).padding(16.dp),
+                                courseDetailUI.progress,
+                                isLoading
+                            )
                         }
-                    }
+                        ButtonWithLoader(
+                            modifier = Modifier.zIndex(1f).padding(bottom = 24.dp),
+                            isLoading = isLoading,
+                            onLongPress = { onStartSessionClick() }
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                Text("Start Session")
+                            }
+                        }
 
+                    }
                 }
             }
         }
@@ -165,8 +181,8 @@ fun CourseDetailScreenPreview() {
             isLoading = false,
             courseDetailUI = CourseDetailUI(
                 id = 1,
-                course = "Matemáticas",
-                title = "Matrices #1",
+                subject = "Matemáticas",
+                course = "Matrices #1",
                 description = "Este curso es sobre el tema 2 del libro donde se habla de las matrices y como hacer opraciones aritmetricas",
                 imageUrl = "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=720&auto=format&fit=crop",
                 grades = listOf(
