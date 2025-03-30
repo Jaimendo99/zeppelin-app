@@ -14,8 +14,8 @@ import java.util.Locale
 fun CourseDetailApi.toCourseDetailUI(): CourseDetailUI{
     return CourseDetailUI(
         id = id,
+        subject = subject,
         course = course,
-        title = title,
         description = description,
         imageUrl = imageUrl,
         grades = grades.map { it.toGradeUI() },

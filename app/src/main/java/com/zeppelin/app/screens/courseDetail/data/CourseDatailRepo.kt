@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 
 class CourseDetailRepo: ICourseDetailRepo  {
     override suspend fun getCourseDetail(id: Int): CourseDetailApi? {
-        delay(3000)
+//        delay(1000)
         return courseDetailList.find { it.id == id}
     }
 }
@@ -13,8 +13,8 @@ class CourseDetailRepo: ICourseDetailRepo  {
 val courseDetailList = listOf(
     CourseDetailApi(
         id = 11,
-        course = "Math",
-        title = "Algebra",
+        subject = "Math",
+        course = "Algebra",
         description =
         "This course covers fundamental concepts of algebra such as equations, " +
                 "functions, and problem-solving techniques.",
@@ -43,8 +43,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 2,
-        course = "Math",
-        title = "Calculus",
+        subject = "Math",
+        course = "Calculus",
         description =
         "Explore derivatives, integrals, and limits in this comprehensive " +
                 "Calculus course, ideal for both beginners and advanced learners.",
@@ -79,8 +79,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 3,
-        course = "Science",
-        title = "Physics",
+        subject = "Science",
+        course = "Physics",
         description =
         "Learn the fundamentals of physics—from classical mechanics to " +
                 "modern theories—by exploring key concepts and experiments.",
@@ -109,8 +109,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 4,
-        course = "Science",
-        title = "Chemistry",
+        subject = "Science",
+        course = "Chemistry",
         description =
         "Delve into chemical reactions, periodic trends, and laboratory " +
                 "techniques in our comprehensive Chemistry course.",
@@ -139,8 +139,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 5,
-        course = "History",
-        title = "World War II",
+        subject = "History",
+        course = "World War II",
         description =
         "Gain an in-depth understanding of the events, strategies, and global " +
                 "impacts of World War II.",
@@ -169,8 +169,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 6,
-        course = "History",
-        title = "Ancient Rome",
+        subject = "History",
+        course = "Ancient Rome",
         description =
         "Explore the fascinating history, politics, and culture of Ancient Rome " +
                 "through engaging lessons and primary sources.",
@@ -199,8 +199,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 7,
-        course = "English",
-        title = "Grammar",
+        subject = "English",
+        course = "Grammar",
         description =
         "Improve your language skills by mastering English grammar rules, " +
                 "syntax, and punctuation.",
@@ -229,8 +229,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 8,
-        course = "English",
-        title = "Literature",
+        subject = "English",
+        course = "Literature",
         description =
         "Discover classic and contemporary works, enhancing your " +
                 "analytical and interpretative skills along the way.",
@@ -259,8 +259,9 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 9,
-        course = "Art",
-        title = "Painting",
+        subject = "Art",
+        course
+        = "Painting",
         description =
         "Develop artistic techniques and explore famous painting styles " +
                 "while getting inspired by art history.",
@@ -289,8 +290,8 @@ val courseDetailList = listOf(
     ),
     CourseDetailApi(
         id = 10,
-        course = "Art",
-        title = "Sculpture",
+        subject = "Art",
+        course = "Sculpture",
         description =
         "Learn about the art of sculpture, exploring both classical " +
                 "techniques and modern innovations in form and material.",
