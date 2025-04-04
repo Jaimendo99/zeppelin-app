@@ -1,4 +1,8 @@
 package com.zeppelin.app.screens.courseSession.ui
 
-class CourseSessionViewModel {
+import androidx.lifecycle.ViewModel
+
+class CourseSessionViewModel(
+
+):ViewModel() {
 }

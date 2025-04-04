@@ -92,12 +92,12 @@ fun NavigationGraph(
                         }
                     }
                 }
-
                 composable(Screens.Profile.route) {
                     ProfileScreen(profileViewModel = ProfileViewModel())
                 }
-                composable(Screens.CourseSession.route) {
-                    CourseSessionScreen()
+                composable(Screens.CourseSession.route) {bse ->
+                    val sessionId = bse.arguments?.getString("sessionId")
+                    CourseSessionScreen(modifier = Modifier, sessionId = sessionId)
                 }
             }
         }

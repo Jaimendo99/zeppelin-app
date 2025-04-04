@@ -7,9 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 @Composable
-fun CourseSessionScreen(modifier: Modifier = Modifier) {
+fun CourseSessionScreen(modifier: Modifier = Modifier, sessionId: String?) {
     // Course session screen
-    Row (modifier = modifier.fillMaxSize()){
-    Text("Course Session Screen")
+    Row(modifier = modifier.fillMaxSize()) {
+        Text("Course Session Screen")
+    }
 }
-}
+
