@@ -1,11 +1,14 @@
 package com.zeppelin.app.screens.courseDetail.ui
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -14,11 +17,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.zeppelin.app.LocalSharedTransitionScopes
 import com.zeppelin.app.screens._common.ui.LoadingText
+import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -70,6 +77,42 @@ fun CourseDetailHeader(modifier: Modifier = Modifier , course: String, descripti
             }
         }
     }
+}
+
+@Composable
+fun CourseDetailHeaderImage(
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    courseDetailUI: CourseDetailUI = CourseDetailUI(),
+){
+    AsyncImage(
+        model = courseDetailUI.imageUrl,
+        contentDescription = null,
+        modifier = modifier
+            .fillMaxWidth()
+            .blur(radius = 8.dp),
+        contentScale = ContentScale.Crop,
+        clipToBounds = true,
+    )
+
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.4f))
+    )
+
+    CourseDetailHeader(
+        modifier = Modifier.padding(
+            top = 16.dp,
+            start = 16.dp,
+            end = 16.dp,
+            bottom = 40.dp
+        ),
+        course = courseDetailUI.course,
+        description = courseDetailUI.description,
+        subject = courseDetailUI.subject,
+        id = courseDetailUI.id,
+        isLoading = isLoading
+    )
 }
 
 @Composable

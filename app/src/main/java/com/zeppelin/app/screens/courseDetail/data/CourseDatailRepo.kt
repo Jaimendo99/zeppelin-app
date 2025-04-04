@@ -1,11 +1,20 @@
 package com.zeppelin.app.screens.courseDetail.data
 
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 
-class CourseDetailRepo: ICourseDetailRepo  {
+class CourseDetailRepo : ICourseDetailRepo {
     override suspend fun getCourseDetail(id: Int): CourseDetailApi? {
-//        delay(1000)
-        return courseDetailList.find { it.id == id}
+        return courseDetailList.find { it.id == id }
+    }
+
+    override suspend fun connectToSession(courseId: Int): Result<String> {
+        delay(3000)
+        val chanceOfSuccess = 0.5f
+        return if (chanceOfSuccess > Random.nextFloat()) Result.success("sessionId") else Result.failure(
+            Exception("Failed to connect to session")
+        )
+
     }
 }
 

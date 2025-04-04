@@ -66,8 +66,8 @@ fun CourseCard(
                     courseCardData.imageUrl,
                     contentDescription = null,
                     modifier = Modifier
-                        .sharedElement(
-                            state = rememberSharedContentState(courseCardData.imageUrl),
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState(courseCardData.imageUrl),
                             animatedVisibilityScope = transScope.animatedVisibilityScope,
                         )
                         .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
@@ -75,13 +75,18 @@ fun CourseCard(
                         .height(integerResource(R.integer.course_image_height).dp),
                     contentScale = ContentScale.Crop
                 )
-                Box {
-                    Row (modifier = Modifier
-                        .sharedElement(
-                            state = rememberSharedContentState(courseCardData.id),
-                            animatedVisibilityScope = transScope.animatedVisibilityScope,
-                        )
-                    ) {
+                Box(
+
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .sharedBounds(
+                                sharedContentState = rememberSharedContentState(courseCardData.id),
+                                animatedVisibilityScope = transScope.animatedVisibilityScope,
+                                zIndexInOverlay = 1f
+                            )
+
+                    ){
                         Column(
                             modifier = Modifier
                                 .padding(16.dp)
