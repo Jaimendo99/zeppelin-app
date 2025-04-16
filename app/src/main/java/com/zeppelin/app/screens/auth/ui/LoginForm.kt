@@ -27,14 +27,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.zeppelin.app.R
+import com.zeppelin.app.screens.auth.data.ErrorResponse
 import com.zeppelin.app.screens.auth.data.ErrorResponseBody
+import com.zeppelin.app.screens.auth.data.Session
 import com.zeppelin.app.screens.auth.data.SignInResponse
 import com.zeppelin.app.screens.auth.domain.NetworkResult
 
 @Composable
 fun LoginForm(
     modifier: Modifier = Modifier,
-    loginScreenData: NetworkResult<SignInResponse, ErrorResponseBody>,
+    loginScreenData: NetworkResult<Session.SessionToken, ErrorResponse>,
     onLogin: (String, String) -> Unit
 ) {
     val email = remember { mutableStateOf("") }

@@ -25,26 +25,4 @@ class AuthNetworkClient {
         install(Logging) { logger = Logger.SIMPLE }
 
     }
-    var browserToken: DevBrowserTokenResponse? = null
-    var sessionToken: String? = null
-
-    suspend fun getDevBrowserToken(): DevBrowserTokenResponse {
-        return client.post("dev_browser") {
-            contentType(ContentType.Application.FormUrlEncoded)
-        }.body()
-    }
-
-    suspend fun signIn(signInRequest: SignInRequest): SignInResponse {
-        return client.post("client/sign_ins") {
-            setBody(FormDataContent(Parameters.build {
-                append("strategy", signInRequest.strategy)
-                append("identifier", signInRequest.identifier)
-                append("password", signInRequest.password)
-            }))
-            headers {
-                append("Authorization", "Bearer ${browserToken?.token}")
-            }
-            contentType(ContentType.Application.FormUrlEncoded)
-        }.body()
-    }
 }

@@ -32,14 +32,24 @@ data class Client(
 
 @Serializable
 data class Session(
+    val id: String,
+    val user: SessionUser,
     @SerialName("last_active_token")
     val lastActiveToken: SessionToken
-)
+) {
+    @Serializable
+    data class SessionUser(
+        val id: String,
+        @SerialName("image_url")
+        val imageUrl: String
+    )
 
-@Serializable
-data class SessionToken(
-    val jwt: String
-)
+    @Serializable
+    data class SessionToken(
+        val jwt: String
+    )
+}
+
 
 @Serializable
 data class ErrorResponseBody(
