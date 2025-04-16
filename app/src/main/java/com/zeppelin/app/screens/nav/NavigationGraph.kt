@@ -1,15 +1,12 @@
 package com.zeppelin.app.screens.nav
 
-import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -23,6 +20,7 @@ import com.zeppelin.app.screens.auth.ui.LoginViewModel
 import com.zeppelin.app.screens.courseDetail.ui.CourseDetailScreen
 import com.zeppelin.app.screens.courseDetail.ui.CourseDetailsViewModel
 import com.zeppelin.app.screens.courseSession.ui.CourseSessionScreen
+import com.zeppelin.app.screens.courseSession.ui.CourseSessionViewModel
 import com.zeppelin.app.screens.courses.ui.CourseViewModel
 import com.zeppelin.app.screens.courses.ui.CoursesScreen
 import com.zeppelin.app.screens.profile.ui.ProfileScreen
@@ -46,8 +44,8 @@ fun NavigationGraph(
         NavHost(
             modifier = modifier,
             navController = navController,
-//        startDestination = if (isAuthenticated.value) "main" else "auth",
-            startDestination = "main",
+                startDestination = if (isAuthenticated.value) "main" else "auth",
+//            startDestination = "main",
         ) {
             navigation(startDestination = Screens.Login.route, route = "auth") {
                 composable(Screens.Login.route) {
@@ -76,30 +74,43 @@ fun NavigationGraph(
                         )
                     }
                 }
+            }
 
-                composable(Screens.CourseDetail.route) { backStackEntry ->
-                    backStackEntry.arguments?.getString("id")?.let { id ->
-                        CompositionLocalProvider(
-                            LocalSharedTransitionScopes provides SharedTransitionScopes(
-                                this, this@SharedTransitionLayout
-                            )
-                        ) {
-                            CourseDetailScreen(
-                                id = id,
-                                courseViewModel = koinViewModel<CourseDetailsViewModel>(),
-                                navController = navController,
-                            )
-                        }
+
+            composable(Screens.CourseDetail.route) { backStackEntry ->
+                backStackEntry.arguments?.getString("id")?.let { id ->
+                    CompositionLocalProvider(
+                        LocalSharedTransitionScopes provides SharedTransitionScopes(
+                            this, this@SharedTransitionLayout
+                        )
+                    ) {
+                        CourseDetailScreen(
+                            id = id,
+                            courseViewModel = koinViewModel<CourseDetailsViewModel>(),
+                            navController = navController,
+                        )
                     }
                 }
-                composable(Screens.Profile.route) {
-                    ProfileScreen(profileViewModel = ProfileViewModel())
+            }
+
+            composable(Screens.CourseSession.route) { bse ->
+                val sessionId = bse.arguments?.getString("sessionId")
+                CompositionLocalProvider(
+                    LocalSharedTransitionScopes provides SharedTransitionScopes(
+                        this, this@SharedTransitionLayout
+                    )
+                ) {
+                    CourseSessionScreen(
+                        modifier = Modifier,
+                        sessionId = sessionId,
+                        courseViewModel = koinViewModel<CourseSessionViewModel>()
+                    )
                 }
-                composable(Screens.CourseSession.route) {bse ->
-                    val sessionId = bse.arguments?.getString("sessionId")
-                    CourseSessionScreen(modifier = Modifier, sessionId = sessionId)
-                }
+            }
+            composable(Screens.Profile.route) {
+                ProfileScreen(profileViewModel = ProfileViewModel())
             }
         }
     }
 }
+

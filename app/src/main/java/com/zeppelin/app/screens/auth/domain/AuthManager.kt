@@ -30,6 +30,7 @@ class AuthManager(private val authPreferences: AuthPreferences) {
     }
 
     suspend fun saveToken(token: String) {
+        Log.d("AuthManager", "saveToken: $token")
         authPreferences.saveToken(token)
     }
 

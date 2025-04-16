@@ -6,6 +6,7 @@ import com.zeppelin.app.di.appModule
 import com.zeppelin.app.di.characterModules
 import com.zeppelin.app.di.courseDetailModules
 import com.zeppelin.app.di.courseModules
+import com.zeppelin.app.di.courseSessionModules
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
@@ -20,7 +21,7 @@ class ZeppelinApp : Application(){
                 modules(appModule)
                 modules(courseModules)
                 modules(courseDetailModules)
-
+                modules(courseSessionModules)
             }
 
     }

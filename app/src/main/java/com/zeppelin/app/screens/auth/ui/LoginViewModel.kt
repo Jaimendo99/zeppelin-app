@@ -3,11 +3,11 @@ package com.zeppelin.app.screens.auth.ui
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zeppelin.app.screens.auth.data.ErrorResponseBody
+import com.zeppelin.app.screens.auth.data.ErrorResponse
 import com.zeppelin.app.screens.auth.data.IAuthRepository
 import com.zeppelin.app.screens.auth.data.LoginEvents
 import com.zeppelin.app.screens.auth.data.LoginEventsType
-import com.zeppelin.app.screens.auth.data.SignInResponse
+import com.zeppelin.app.screens.auth.data.Session
 import com.zeppelin.app.screens.auth.domain.AuthManager
 import com.zeppelin.app.screens.auth.domain.NetworkResult
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,8 +21,8 @@ class LoginViewModel(
     private val authManager: AuthManager
 ) : ViewModel() {
 
-    private val _loginState = MutableStateFlow<NetworkResult<SignInResponse, ErrorResponseBody>>(NetworkResult.Idle)
-    val loginState: StateFlow<NetworkResult<SignInResponse, ErrorResponseBody>> = _loginState
+    private val _loginState = MutableStateFlow<NetworkResult<Session.SessionToken, ErrorResponse>>(NetworkResult.Idle)
+    val loginState: StateFlow<NetworkResult<Session.SessionToken, ErrorResponse>> = _loginState
 
 
     private val _loginEvents = MutableSharedFlow<LoginEvents>()
@@ -33,8 +33,9 @@ class LoginViewModel(
         viewModelScope.launch {
             _loginState.value = NetworkResult.Loading
             _loginState.value = repository.login(email, password)
+            Log.d("LoginViewModel", "onLoginClick: ${_loginState.value}")
             if (_loginState.value is NetworkResult.Success) {
-                authManager.saveToken((_loginState.value as NetworkResult.Success).data.client.sessions[0].lastActiveToken.jwt)
+                authManager.saveToken((_loginState.value as NetworkResult.Success).data.jwt)
                 onLoginSuccess()
             }
         }

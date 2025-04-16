@@ -37,15 +37,15 @@ fun CourseContent(
     onRetryConnection: () -> Unit,
     onLongPressStartAnimation: () -> Unit,
     onButtonPositioned: (position: Offset, size: IntSize) -> Unit,
-    stsps: SharedTransitionScopes
+    sharedScopes: SharedTransitionScopes
 ) {
-    with(stsps.sharedTransitionScope) {
+    with(sharedScopes.sharedTransitionScope) {
         Column(modifier = modifier) {
             Box(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = rememberSharedContentState(courseDetailUI.imageUrl),
-                        animatedVisibilityScope = stsps.animatedVisibilityScope,
+                        animatedVisibilityScope = sharedScopes.animatedVisibilityScope,
                         zIndexInOverlay = 0f
                     )
                     .fillMaxWidth()
@@ -61,7 +61,7 @@ fun CourseContent(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = rememberSharedContentState(courseDetailUI.id),
-                        animatedVisibilityScope = stsps.animatedVisibilityScope,
+                        animatedVisibilityScope = sharedScopes.animatedVisibilityScope,
                         zIndexInOverlay = 1f
                     )
                     .offset(y = (-24).dp)

@@ -20,14 +20,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zeppelin.app.R
 import com.zeppelin.app.screens._common.ui.SpinningCircleWave
-import com.zeppelin.app.screens.auth.data.ErrorResponseBody
-import com.zeppelin.app.screens.auth.data.SignInResponse
+import com.zeppelin.app.screens.auth.data.ErrorResponse
+import com.zeppelin.app.screens.auth.data.Session
 import com.zeppelin.app.screens.auth.domain.NetworkResult
 
 @Composable
 fun LoginState(
     modifier: Modifier = Modifier,
-    networkResult: NetworkResult<SignInResponse, ErrorResponseBody>
+    networkResult: NetworkResult<Session.SessionToken, ErrorResponse>
 ) {
     val scrollState = rememberScrollState()
     AnimatedContent(
@@ -50,10 +50,8 @@ fun LoginState(
 }
 
 
-
-
 @Composable
-fun LoginStateSuccess(success: NetworkResult.Success<SignInResponse>) {
+fun LoginStateSuccess(success: NetworkResult.Success<Session.SessionToken>) {
     Column {
         Text(text = "Login Success")
         LoginTitleDrawing()
@@ -99,7 +97,7 @@ fun LoginStateIdle(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun LoginStateError(error: NetworkResult.Error<ErrorResponseBody>) {
+fun LoginStateError(error: NetworkResult.Error<ErrorResponse>) {
     val errors = listOf(
         "Enter password.",
         "Identifier is invalid.",
@@ -107,7 +105,7 @@ fun LoginStateError(error: NetworkResult.Error<ErrorResponseBody>) {
         "Password is incorrect. Try again, or use another method.",
     )
     SelectionContainer {
-        when (error.errorBody?.errors?.get(0)?.message) {
+        when (error.errorBody?.message) {
             errors[0] -> {
                 Text("Password is required.")
             }
