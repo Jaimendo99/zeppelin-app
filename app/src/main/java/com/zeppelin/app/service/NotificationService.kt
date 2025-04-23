@@ -41,7 +41,7 @@ class NotificationService : FirebaseMessagingService() {
             .build()
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(2, notification)
+        notificationManager.notify(1, notification)
 
 
     }
