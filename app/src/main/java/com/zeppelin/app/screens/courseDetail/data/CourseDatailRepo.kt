@@ -1,27 +1,50 @@
 package com.zeppelin.app.screens.courseDetail.data
 
-import kotlinx.coroutines.delay
-import kotlin.random.Random
+import android.content.Intent
+import com.zeppelin.app.screens._common.data.WebSocketState
+import com.zeppelin.app.service.LiveSessionService
 
-class CourseDetailRepo : ICourseDetailRepo {
+class CourseDetailRepo(
+    private val context: android.content.Context,
+) : ICourseDetailRepo {
     override suspend fun getCourseDetail(id: Int): CourseDetailApi? {
         return courseDetailList.find { it.id == id }
     }
 
-    override suspend fun connectToSession(courseId: Int): Result<String> {
-        delay(3000)
-        val chanceOfSuccess = 0.5f
-        return if (chanceOfSuccess > Random.nextFloat()) Result.success("sessionId") else Result.failure(
-            Exception("Failed to connect to session")
-        )
+    override suspend fun connectToSession(courseId: Int): Result<WebSocketState> {
+        try {
+            Intent(
+                context,
+                LiveSessionService::class.java
+            ).apply {
+                action = LiveSessionService.SessionState.CONNECTED.name
+                putExtra("courseId", courseId)
+            }.also {
+                context.startForegroundService(it)
+            }
 
+        } catch (e: Exception) {
+            return Result.failure(e)
+        }
+        return Result.success(WebSocketState.Connected("Connected to course session"))
+    }
+
+    override suspend fun disconnectFromSession() {
+        Intent(
+            context,
+            LiveSessionService::class.java
+        ).apply {
+            action = LiveSessionService.SessionState.DISCONNECTED.name
+        }.also {
+            context.startForegroundService(it)
+        }
     }
 }
 
 
 val courseDetailList = listOf(
     CourseDetailApi(
-        id = 11,
+        id = 1,
         subject = "Math",
         course = "Algebra",
         description =

@@ -80,9 +80,12 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.serialization)
     implementation(libs.ktor.serialization.json)
+    implementation(libs.ktor.client.websockets)
 
     //datastore
     implementation(libs.androidx.datastore.preferences)
+
+
 
 
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
