@@ -1,12 +1,19 @@
 package com.zeppelin.app.service
 
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.core.app.NotificationCompat
+import com.zeppelin.app.MainActivity
 import com.zeppelin.app.R
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +35,7 @@ class LiveSessionService : Service() {
 
         when (intent?.action) {
             SessionState.CONNECTED.name -> {
-                val notification = notificationBuilder(courseId, "Session started...")
+                val notification = notificationBuilder("Session started...")
                 startForeground(1, notification.build())
                 start(courseId)
             }
@@ -42,7 +49,7 @@ class LiveSessionService : Service() {
         CoroutineScope(Dispatchers.IO).launch {
             wsClient.connect(courseId)
             wsClient.incomingMessages.collect { message ->
-                val notification = notificationBuilder(courseId, message)
+                val notification = notificationBuilder(message)
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(1, notification.build())
             }
@@ -59,13 +66,37 @@ class LiveSessionService : Service() {
         }
     }
 
-    private fun notificationBuilder(courseId: Int?, data: String): NotificationCompat.Builder {
+    private fun notificationBuilder(data: String): NotificationCompat.Builder {
+        val courseId = wsClient.lastCourseId.value
+
+        val contentIntent = Intent(this, MainActivity::class.java).apply {
+            putExtra("courseId", courseId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK // Adjust flags as needed
+        }
+
+        val pendingIntentFlags =
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val contentPendingIntent: PendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            contentIntent,
+            pendingIntentFlags
+        )
         return NotificationCompat.Builder(this, "live_session_channel")
             .setOngoing(true)
-            .setContentTitle("Live Session for Course ID: ${wsClient.lastCourseId.value ?: "N/A"}")
+            .setContentTitle("Live Session for Course ID: $courseId")
             .setContentText(data)
-            .setSmallIcon(R.drawable.logo)
-            .setPriority(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setSmallIcon(R.drawable.ic_fg_dark)
+            .setContentIntent(contentPendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setLargeIcon( BitmapFactory.decodeResource( resources, R.drawable.logo ) )
+            .setStyle(
+                NotificationCompat.BigTextStyle() // Keep BigTextStyle if 'data' can be long
+                    .bigText(data)
+                    .setBigContentTitle("Live Session for Course ID: $courseId")
+                    .setSummaryText("Tap to view details")
+            )
+
     }
 
     enum class SessionState {

@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.zeppelin.app.di.AuthModules
 import com.zeppelin.app.di.appModule
-import com.zeppelin.app.di.characterModules
 import com.zeppelin.app.di.courseDetailModules
 import com.zeppelin.app.di.courseModules
 import com.zeppelin.app.di.courseSessionModules
@@ -18,7 +17,6 @@ class ZeppelinApp : Application() {
         super.onCreate()
         startKoin {
             androidContext(this@ZeppelinApp)
-            modules(characterModules)
             modules(AuthModules)
             modules(appModule)
             modules(courseModules)
@@ -32,7 +30,7 @@ class ZeppelinApp : Application() {
          val channel =  NotificationChannel(
              "live_session_channel",
              "Live Session Channel",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH
          )
         val notificationManager = getSystemService(NotificationManager::class.java) as NotificationManager
         notificationManager.createNotificationChannel(channel)
