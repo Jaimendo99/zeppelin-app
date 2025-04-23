@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.zeppelin.app.SharedTransitionScopes
+import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.data.SessionState
 
@@ -33,7 +34,7 @@ fun CourseContent(
     modifier: Modifier = Modifier,
     courseDetailUI: CourseDetailUI,
     isLoading: Boolean,
-    sessionState: SessionState,
+    sessionState: WebSocketState,
     onRetryConnection: () -> Unit,
     onLongPressStartAnimation: () -> Unit,
     onButtonPositioned: (position: Offset, size: IntSize) -> Unit,
@@ -94,8 +95,8 @@ fun CourseContent(
                             .padding(bottom = 24.dp),
                         onClick = onRetryConnection,
                         onLongPressStartAnimation = onLongPressStartAnimation,
-                        isLoading = sessionState.isSessionLoading,
-                        isSessionStarted = sessionState.isSessionStarted,
+                        isLoading = sessionState is WebSocketState.Connecting,
+                        isSessionStarted = sessionState is WebSocketState.Connected,
                         onPositioned = onButtonPositioned
                     )
                 }

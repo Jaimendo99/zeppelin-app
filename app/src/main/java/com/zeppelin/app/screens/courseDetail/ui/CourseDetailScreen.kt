@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.zeppelin.app.LocalSharedTransitionScopes
+import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.data.CourseProgressUI
 import com.zeppelin.app.screens.courseDetail.data.GradeUI
@@ -51,7 +52,7 @@ fun CourseDetailScreen(
 ) {
     val courseDetail = courseViewModel.courseDetail.collectAsState().value
     val loading = courseViewModel.isLoading.collectAsState().value
-    val sessionState = courseViewModel.sessionState.collectAsState().value
+    val sessionState = courseViewModel.webSocketState.collectAsState().value
 
     LaunchedEffect(Unit) {
         courseViewModel.events.collect { event ->
@@ -59,8 +60,7 @@ fun CourseDetailScreen(
             }
         }
     }
-
-    LaunchedEffect(key1 = "connection/$id") { courseViewModel.connectToSessionWithRetry(id.toInt()) }
+    LaunchedEffect(key1 = "connection/$id") { courseViewModel.startSession(id.toInt()) }
     LaunchedEffect(key1 = "data/$id") { courseViewModel.getCourseDetail(id.toInt()) }
 
     AnimatedContent(
@@ -78,7 +78,7 @@ fun CourseDetailScreen(
                         onSessionStartNavigation = { courseViewModel.onSessionStartClick() },
                         isLoading = false,
                         sessionState = sessionState,
-                        onRetryConnection = { courseViewModel.connectToSessionWithRetry(id.toInt()) }
+                        onRetryConnection = { courseViewModel.retryConnection(id.toInt()) }
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -90,7 +90,7 @@ fun CourseDetailScreen(
                     modifier = modifier,
                     isLoading = true,
                     courseDetailUI = CourseDetailUI(), // Example empty data
-                    sessionState = SessionState(),
+                    sessionState = WebSocketState.Idle,
                 )
             }
         }
@@ -110,7 +110,7 @@ fun CourseScreenLayout(
     courseDetailUI: CourseDetailUI = CourseDetailUI(),
     onSessionStartNavigation: () -> Unit = {},
     isLoading: Boolean = false,
-    sessionState: SessionState,
+    sessionState: WebSocketState,
     onRetryConnection: () -> Unit = {},
 ) {
     val transScope = LocalSharedTransitionScopes.current
@@ -149,9 +149,9 @@ fun CourseScreenLayout(
     val showOverlay = isAnimating || animationProgress > 0f
 
     val startAnimationLambda =
-        remember(sessionState.isSessionLoading, sessionState.isSessionStarted) {
+        remember(sessionState is WebSocketState.Connecting, sessionState is WebSocketState.Connected) {
             {
-                if (!sessionState.isSessionLoading && sessionState.isSessionStarted) {
+                if (!(sessionState is WebSocketState.Connecting) && sessionState is WebSocketState.Connected) {
                     isAnimating = true
                 }
             }
@@ -203,7 +203,7 @@ fun CourseDetailScreenPreview() {
     ZeppelinTheme {
         val date = "12/12/2021"
         CourseScreenLayout(
-            sessionState = SessionState(),
+            sessionState = WebSocketState.Connected(""),
             isLoading = false,
             courseDetailUI = CourseDetailUI(
                 id = 1,
