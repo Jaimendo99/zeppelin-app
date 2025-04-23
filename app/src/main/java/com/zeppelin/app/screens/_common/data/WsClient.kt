@@ -9,8 +9,6 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.receiveDeserialized
-import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
 import io.ktor.http.HttpMethod
@@ -32,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 class WebSocketClient(
     private val authPreferences: IAuthPreferences
@@ -49,16 +48,15 @@ class WebSocketClient(
     private val _incomingMessages = MutableSharedFlow<String>()
     val incomingMessages: SharedFlow<String> = _incomingMessages.asSharedFlow()
 
-    private val _wsEvents = MutableSharedFlow<WebSocketEvent>()
-    val wsEvents: SharedFlow<WebSocketEvent> = _wsEvents.asSharedFlow()
-
     private val _lastCourseId = MutableStateFlow(-1)
     val lastCourseId: StateFlow<Int> = _lastCourseId.asStateFlow()
 
     private val client = HttpClient(CIO) {
         install(WebSockets) {
             pingIntervalMillis = 20_000
-            contentConverter = KotlinxWebsocketSerializationConverter(AppJson)
+            contentConverter = KotlinxWebsocketSerializationConverter(Json {
+                ignoreUnknownKeys = true
+            })
         }
         install(Logging) {
             level = LogLevel.ALL
@@ -75,7 +73,7 @@ class WebSocketClient(
             Log.e(TAG, "Invalid course ID")
             _state.value = WebSocketState.Error("Invalid course ID")
             return
-        } else if (courseId == _lastCourseId.value) {
+        }else if (courseId == _lastCourseId.value) {
             _state.value = WebSocketState.Connected("Already connected to course $courseId")
             Log.d(TAG, "Already connected to course $courseId")
             return
@@ -84,7 +82,7 @@ class WebSocketClient(
             Log.d(TAG, "Connecting to course $courseId")
             return
         }
-        connectWithRetry(courseId) { connectToSession(it) }
+        connectWithRetry(courseId){ connectToSession(it) }
     }
 
     private suspend fun connectToSession(courseId: Int): Result<Unit> {
@@ -151,19 +149,15 @@ class WebSocketClient(
     }
 
 
-    private suspend fun listenIncomingMessages(session: DefaultClientWebSocketSession) {
+    private fun listenIncomingMessages(session: DefaultClientWebSocketSession) {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 for (frame in session.incoming) {
                     when (frame) {
                         is Frame.Text -> {
                             val text = frame.readText()
-                            val event = session.receiveDeserialized<WebSocketEvent>()
-                            _wsEvents.emit(event)
+                            Log.d(TAG, "Received: $text")
                             _incomingMessages.emit(text)
-
-                            Log.d(TAG, "Received text: $text")
-                            Log.d(TAG, "Received event: $event")
-
                         }
 
                         is Frame.Binary -> {
@@ -187,21 +181,7 @@ class WebSocketClient(
                 _state.value = WebSocketState.Error("Error while receiving", e)
             } finally {
                 _state.value = WebSocketState.Disconnected
-        }
-    }
-
-    suspend fun sendEvent(event: WebSocketEvent) {
-        session?.let {
-            try {
-                it.sendSerialized(event)
-                Log.d(TAG, "Sent event: $event")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error sending event", e)
-                _state.value = WebSocketState.Error("Error sending event", e)
             }
-        } ?: run {
-            Log.e(TAG, "Cannot send event, not connected")
-            _state.value = WebSocketState.Error("Cannot send event, not connected", null)
         }
     }
 
