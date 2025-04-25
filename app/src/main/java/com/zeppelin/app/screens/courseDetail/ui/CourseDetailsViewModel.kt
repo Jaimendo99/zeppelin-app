@@ -30,24 +30,14 @@ class CourseDetailsViewModel(
     val isLoading: StateFlow<Boolean> = _isLoading
 
     val webSocketState: StateFlow<WebSocketState> = webSocketClient.state
-    private val lastCourseId: StateFlow<Int> = webSocketClient.lastCourseId
+
 
     private val TAG = "CourseDetailViewModel"
 
-    fun startSession(courseId: Int) {
+    fun startSession(courseId: Int, retry: Boolean = false) {
         viewModelScope.launch {
             Log.d(TAG, "Starting session for course ID: $courseId")
-            if (courseId != lastCourseId.value && lastCourseId.value != -1)
-               webSocketClient.setConnectionState(WebSocketState.Idle)
-            else courseDetailRepo.connectToSession(courseId)
-        }
-    }
-
-    fun retryConnection(courseId: Int) {
-        viewModelScope.launch {
-            courseDetailRepo.disconnectFromSession()
-            delay(1000)
-            courseDetailRepo.connectToSession(courseId )
+            courseDetailRepo.connectToSession(courseId, retry)
         }
     }
 
