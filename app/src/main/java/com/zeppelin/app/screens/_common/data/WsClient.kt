@@ -9,19 +9,17 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.path
-import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readReason
 import io.ktor.websocket.readText
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,8 +27,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.update
+import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.SerializationException
 
 class WebSocketClient(
     private val authPreferences: IAuthPreferences
@@ -48,15 +47,12 @@ class WebSocketClient(
     private val _incomingMessages = MutableSharedFlow<String>()
     val incomingMessages: SharedFlow<String> = _incomingMessages.asSharedFlow()
 
-    private val _lastCourseId = MutableStateFlow(-1)
-    val lastCourseId: StateFlow<Int> = _lastCourseId.asStateFlow()
+    private val _wsEvents = MutableSharedFlow<WebSocketEvent>()
+    val wsEvents: SharedFlow<WebSocketEvent> = _wsEvents.asSharedFlow()
 
     private val client = HttpClient(CIO) {
         install(WebSockets) {
             pingIntervalMillis = 20_000
-            contentConverter = KotlinxWebsocketSerializationConverter(Json {
-                ignoreUnknownKeys = true
-            })
         }
         install(Logging) {
             level = LogLevel.ALL
@@ -68,21 +64,41 @@ class WebSocketClient(
         }
     }
 
-    suspend fun connect(courseId: Int) {
-        if (courseId == -1) {
-            Log.e(TAG, "Invalid course ID")
-            _state.value = WebSocketState.Error("Invalid course ID")
-            return
-        }else if (courseId == _lastCourseId.value) {
-            _state.value = WebSocketState.Connected("Already connected to course $courseId")
-            Log.d(TAG, "Already connected to course $courseId")
-            return
-        } else if (courseId != _lastCourseId.value && _lastCourseId.value != -1) {
-            _state.value = WebSocketState.Disconnected
-            Log.d(TAG, "Connecting to course $courseId")
+
+    suspend fun connect(courseId: Int, retry: Boolean = false) {
+        Log.d(TAG, "Connecting to course $courseId")
+        if (courseId < 1) {
+            Log.d(TAG, "Invalid course ID")
             return
         }
-        connectWithRetry(courseId){ connectToSession(it) }
+        when (val currentState = _state.value) {
+            is WebSocketState.Connected -> {
+                if (currentState.lastCourseId == courseId) {
+                    Log.d(TAG, "Already connected to course $courseId")
+                    return
+                }
+                if (retry) {
+                    Log.d(
+                        TAG,
+                        "Already connected to a different course, reconnecting to course $courseId"
+                    )
+                    disconnect()
+                    connectWithRetry(courseId) { connectToSession(it) }
+                } else {
+                    Log.d(TAG, "Already connected to a different course, not reconnecting")
+                }
+            }
+
+            WebSocketState.Connecting -> {
+                Log.d(TAG, "Already connecting to a course")
+                return
+            }
+
+            WebSocketState.Disconnected, WebSocketState.Idle, is WebSocketState.Error -> {
+                Log.d(TAG, "Disconnected from previous course, connecting to course $courseId")
+                connectWithRetry(courseId) { connectToSession(it) }
+            }
+        }
     }
 
     private suspend fun connectToSession(courseId: Int): Result<Unit> {
@@ -102,8 +118,7 @@ class WebSocketClient(
                         parameter("courseId", courseId)
                     }
                 }
-                _lastCourseId.value = courseId
-                _state.value = WebSocketState.Connected("Connected")
+                _state.value = WebSocketState.Connected(courseId)
             } catch (e: Exception) {
                 _state.value = WebSocketState.Error("Error connecting to WebSocket", e)
                 Log.e(TAG, "Error connecting to WebSocket", e)
@@ -118,7 +133,7 @@ class WebSocketClient(
         courseId: Int = -1,
         maxRetries: Int = 2,
         initialDelayMillis: Long = 1000L,
-        maxDelayMillis: Long = 16000L, // Cap the delay
+        maxDelayMillis: Long = 16000L,
         factor: Double = 2.0,
         connectFunction: suspend (Int) -> Result<Unit>
     ) {
@@ -127,7 +142,7 @@ class WebSocketClient(
         for (attempt in 1..maxRetries) {
             connectFunction(courseId)
                 .onSuccess { _ ->
-                    _state.value = WebSocketState.Connected("Connected to course $courseId")
+                    _state.update { WebSocketState.Connected(courseId) }
                     Log.d(TAG, "Connection successful on attempt $attempt")
                     return
                 }
@@ -149,39 +164,36 @@ class WebSocketClient(
     }
 
 
-    private fun listenIncomingMessages(session: DefaultClientWebSocketSession) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                for (frame in session.incoming) {
-                    when (frame) {
-                        is Frame.Text -> {
-                            val text = frame.readText()
-                            Log.d(TAG, "Received: $text")
-                            _incomingMessages.emit(text)
-                        }
-
-                        is Frame.Binary -> {
-                            Log.d(TAG, "Received binary data")
-                        }
-
-                        is Frame.Close -> {
-                            val reason = frame.readReason()
-                            Log.d(TAG, "Connection closed: $reason")
-                            _state.value = WebSocketState.Disconnected
-                            break
-                        }
-
-                        else -> {
-                            Log.d(TAG, "Received other frame: $frame")
-                        }
-                    }
+    private suspend fun listenIncomingMessages(session: DefaultClientWebSocketSession) {
+        try {
+            for (frame in session.incoming) {
+                when (frame) {
+                    is Frame.Text -> receiveTextMessage(frame)
+                    is Frame.Binary -> Log.d(TAG, "Received binary data")
+                    is Frame.Close -> receiveFrameClose(frame)
+                    else -> Log.d(TAG, "Received other frame: $frame")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error while receiving messages", e)
-                _state.value = WebSocketState.Error("Error while receiving", e)
-            } finally {
-                _state.value = WebSocketState.Disconnected
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error while receiving messages", e)
+            _state.value = WebSocketState.Error("Error while receiving", e)
+        } finally {
+            _state.value = WebSocketState.Disconnected
+        }
+    }
+
+    suspend fun sendEvent(event: WebSocketEvent) {
+        session?.let {
+            try {
+                it.sendSerialized(event)
+                Log.d(TAG, "Sent event: $event")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending event", e)
+                _state.value = WebSocketState.Error("Error sending event", e)
+            }
+        } ?: run {
+            Log.e(TAG, "Cannot send event, not connected")
+            _state.value = WebSocketState.Error("Cannot send event, not connected", null)
         }
     }
 
@@ -205,7 +217,6 @@ class WebSocketClient(
             try {
                 it.close(CloseReason(CloseReason.Codes.NORMAL, "Client closed connection"))
                 Log.d(TAG, "Disconnected")
-                _lastCourseId.value = -1
                 _state.value = WebSocketState.Disconnected
             } catch (e: Exception) {
                 Log.e(TAG, "Error disconnecting", e)
@@ -214,6 +225,35 @@ class WebSocketClient(
                 session = null
             }
         }
+    }
+
+
+
+    private suspend fun receiveTextMessage(frame: Frame.Text) {
+        val text = frame.readText()
+        Log.d(TAG, "Received text: $text")
+        val event = try {
+            AppJson.decodeFromString(
+                PolymorphicSerializer(WebSocketEvent::class),
+                text
+            )
+        } catch (e: SerializationException) {
+            Log.w(TAG, "Failed to deserialize text into known WebSocketEvent: ${e.message}. Treating as UnknownEvent.")
+            UnknownEvent(rawText = text)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error processing text message: $text", e)
+            UnknownEvent(rawText = "Error during processing: $text")
+        }
+        _incomingMessages.emit(text)
+        Log.d(TAG, "Processed event: $event")
+        _wsEvents.emit(event)
+    }
+
+    private fun receiveFrameClose(frame: Frame.Close) {
+        val reason = frame.readReason()
+        Log.d(TAG, "Connection closed: $reason")
+        _state.value = WebSocketState.Disconnected
     }
 
     fun setConnectionState(state: WebSocketState) {
@@ -225,7 +265,7 @@ class WebSocketClient(
 sealed class WebSocketState {
     data object Idle : WebSocketState()
     data object Connecting : WebSocketState()
-    data class Connected(val initialStatus: String) : WebSocketState() // Pass initial status
+    data class Connected(val lastCourseId: Int) : WebSocketState()
     data class Error(val message: String, val cause: Throwable? = null) : WebSocketState()
     data object Disconnected : WebSocketState()
 }

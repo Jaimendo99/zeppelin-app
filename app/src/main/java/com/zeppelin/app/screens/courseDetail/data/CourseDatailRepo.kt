@@ -11,14 +11,15 @@ class CourseDetailRepo(
         return courseDetailList.find { it.id == id }
     }
 
-    override suspend fun connectToSession(courseId: Int): Result<WebSocketState> {
+    override suspend fun connectToSession(courseId: Int, retry: Boolean): Result<WebSocketState> {
         try {
             Intent(
                 context,
                 LiveSessionService::class.java
             ).apply {
-                action = LiveSessionService.SessionState.CONNECTED.name
+                action = LiveSessionService.Action.START.name
                 putExtra("courseId", courseId)
+                putExtra("retry", retry)
             }.also {
                 context.startForegroundService(it)
             }
@@ -26,7 +27,7 @@ class CourseDetailRepo(
         } catch (e: Exception) {
             return Result.failure(e)
         }
-        return Result.success(WebSocketState.Connected("Connected to course session"))
+        return Result.success(WebSocketState.Connected(courseId))
     }
 
     override suspend fun disconnectFromSession() {
@@ -34,7 +35,7 @@ class CourseDetailRepo(
             context,
             LiveSessionService::class.java
         ).apply {
-            action = LiveSessionService.SessionState.DISCONNECTED.name
+            action = LiveSessionService.Action.STOP.name
         }.also {
             context.startForegroundService(it)
         }

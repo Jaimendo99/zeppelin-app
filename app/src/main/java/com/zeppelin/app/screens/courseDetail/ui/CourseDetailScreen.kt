@@ -78,7 +78,7 @@ fun CourseDetailScreen(
                         onSessionStartNavigation = { courseViewModel.onSessionStartClick() },
                         isLoading = false,
                         sessionState = sessionState,
-                        onRetryConnection = { courseViewModel.retryConnection(id.toInt()) }
+                        onRetryConnection = { courseViewModel.startSession(id.toInt(), true) }
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -203,7 +203,7 @@ fun CourseDetailScreenPreview() {
     ZeppelinTheme {
         val date = "12/12/2021"
         CourseScreenLayout(
-            sessionState = WebSocketState.Connected(""),
+            sessionState = WebSocketState.Connected(9),
             isLoading = false,
             courseDetailUI = CourseDetailUI(
                 id = 1,

@@ -26,7 +26,6 @@ import androidx.compose.ui.zIndex
 import com.zeppelin.app.SharedTransitionScopes
 import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
-import com.zeppelin.app.screens.courseDetail.data.SessionState
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -89,6 +88,10 @@ fun CourseContent(
                             isLoading
                         )
                     }
+                    val isSessionStarted: Boolean = when (sessionState) {
+                        is WebSocketState.Connected -> courseDetailUI.id == sessionState.lastCourseId
+                        else -> false
+                    }
                     StartSessionButton(
                         modifier = Modifier
                             .zIndex(1f)
@@ -96,7 +99,7 @@ fun CourseContent(
                         onClick = onRetryConnection,
                         onLongPressStartAnimation = onLongPressStartAnimation,
                         isLoading = sessionState is WebSocketState.Connecting,
-                        isSessionStarted = sessionState is WebSocketState.Connected,
+                        isSessionStarted = isSessionStarted,
                         onPositioned = onButtonPositioned
                     )
                 }
