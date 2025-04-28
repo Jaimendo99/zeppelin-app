@@ -38,7 +38,10 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
+
+
 }
 
 dependencies {
@@ -54,6 +57,12 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.material)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.androidx.activity)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -84,9 +93,7 @@ dependencies {
 
     //datastore
     implementation(libs.androidx.datastore.preferences)
-
-
-
+    implementation(libs.androidx.core.splashscreen)
 
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
     implementation("com.google.firebase:firebase-messaging")

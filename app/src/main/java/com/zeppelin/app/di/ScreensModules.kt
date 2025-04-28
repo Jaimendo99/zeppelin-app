@@ -1,6 +1,7 @@
 package com.zeppelin.app.di
 
 
+import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens.auth.data.AuthPreferences
 import com.zeppelin.app.screens.auth.data.IAuthPreferences
@@ -27,8 +28,10 @@ val courseDetailModules = module {
     single<IAuthPreferences> { AuthPreferences(get()) }
     single<WebSocketClient> { WebSocketClient(get()) }
 
+    single<SessionEventsManager>{ SessionEventsManager(get())}
+
     single<ICourseDetailRepo> { CourseDetailRepo(context = get()) }
-    viewModel { CourseDetailsViewModel(get(), get()) }
+    viewModel { CourseDetailsViewModel(get(), get(), get()) }
 }
 
 val courseSessionModules = module {

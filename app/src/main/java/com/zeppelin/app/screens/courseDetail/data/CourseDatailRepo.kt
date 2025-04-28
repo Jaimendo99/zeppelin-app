@@ -30,7 +30,7 @@ class CourseDetailRepo(
         return Result.success(WebSocketState.Connected(courseId))
     }
 
-    override suspend fun disconnectFromSession() {
+    override  fun disconnectFromSession() {
         Intent(
             context,
             LiveSessionService::class.java

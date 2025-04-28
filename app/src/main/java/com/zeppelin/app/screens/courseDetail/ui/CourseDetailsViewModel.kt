@@ -3,6 +3,7 @@ package com.zeppelin.app.screens.courseDetail.ui
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
@@ -17,7 +18,8 @@ import kotlinx.coroutines.launch
 
 class CourseDetailsViewModel(
     private val courseDetailRepo: ICourseDetailRepo,
-    private val webSocketClient: WebSocketClient
+    webSocketClient: WebSocketClient,
+    private val sessionEventsManager: SessionEventsManager
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<String>()
@@ -31,8 +33,24 @@ class CourseDetailsViewModel(
 
     val webSocketState: StateFlow<WebSocketState> = webSocketClient.state
 
-
     private val TAG = "CourseDetailViewModel"
+
+    init {
+        viewModelScope.launch {
+            sessionEventsManager.observeEvents({ courseDetailRepo.disconnectFromSession() })
+        }
+        viewModelScope.launch {
+            webSocketClient.state.collect { state ->
+                when (state) {
+                    is WebSocketState.Connected -> { Log.d(TAG, "WebSocket connected ${state.lastCourseId}") }
+                    is WebSocketState.Disconnected -> { Log.d(TAG, "WebSocket disconnected") }
+                    is WebSocketState.Error -> { Log.d(TAG, "WebSocket error: ${state.message}") }
+                    WebSocketState.Connecting -> { Log.d(TAG, "WebSocket connecting") }
+                    WebSocketState.Idle -> { Log.d(TAG, "WebSocket idle") }
+                }
+            }
+        }
+    }
 
     fun startSession(courseId: Int, retry: Boolean = false) {
         viewModelScope.launch {

@@ -60,7 +60,7 @@ fun CourseDetailScreen(
             }
         }
     }
-    LaunchedEffect(key1 = "connection/$id") { courseViewModel.startSession(id.toInt()) }
+    LaunchedEffect(key1 = "connection/$id") { courseViewModel.startSession(id.toInt(), false) }
     LaunchedEffect(key1 = "data/$id") { courseViewModel.getCourseDetail(id.toInt()) }
 
     AnimatedContent(

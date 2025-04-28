@@ -2,4 +2,14 @@
 <resources>
 
     <style name="Theme.Zeppelin" parent="android:Theme.Material.Light.NoActionBar" />
+
+        <style name="Theme.App.Started" parent="Theme.SplashScreen">
+            <item name="windowSplashScreenBackground">#FFFFF8F2</item>
+            <item name="postSplashScreenTheme">@style/Theme.Zeppelin</item>
+            <item name="windowSplashScreenAnimationDuration">1000</item>
+            <item name="windowSplashScreenAnimatedIcon">@drawable/splash_animator_avg</item>
+            <item name="windowSplashScreenIconBackgroundColor">@color/white</item>
+            <item name="android:windowBackground">@color/white</item>
+        </style>
+
 </resources>
