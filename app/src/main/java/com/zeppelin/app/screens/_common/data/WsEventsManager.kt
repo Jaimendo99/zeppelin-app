@@ -7,10 +7,10 @@ class SessionEventsManager(
 ) {
     private val TAG = "WsEventsManager"
 
-    suspend fun observeEvents(){
+    suspend fun observeEvents(disconnectFunction: () -> Unit){
         webSocketClient.wsEvents.collect { message ->
             when (message) {
-                is StatusUpdateMessage -> handleStatusUpdate(message)
+                is StatusUpdateMessage -> handleStatusUpdate(message, disconnectFunction)
                 is PomodoroStartMessage -> handlePomodoroStart(message)
                 is PomodoroExtendMessage -> handlePomodoroExtend(message)
                 is PomodoroPhaseEndMessage -> handlePomodoroPhaseEnd(message)
@@ -20,39 +20,43 @@ class SessionEventsManager(
             }
         }
     }
-    private fun handleStatusUpdate(statusUpdate: StatusUpdateMessage) {
+    private suspend fun handleStatusUpdate(statusUpdate: StatusUpdateMessage, disconnectFunction: () -> Unit) {
         Log.d(TAG, "Status update: $statusUpdate")
-        TODO("Not yet implemented $statusUpdate")
+        if (statusUpdate.platforms.web == 0) {
+            disconnectFunction()
+        } else {
+            Log.d(TAG, "WebSocket is connected")
+        }
     }
 
     private fun handlePomodoroStart(startMessage: PomodoroStartMessage) {
         Log.d(TAG, "Pomodoro started: $startMessage")
-        TODO("Not yet implemented $startMessage")
+        // TODO: Handle pomodoro start event
     }
 
     private fun handlePomodoroExtend(extendMessage: PomodoroExtendMessage) {
         Log.d(TAG, "Pomodoro extended: $extendMessage")
-        TODO("Not yet implemented $extendMessage")
+        // TODO: Handle pomodoro extend event
     }
 
     private fun handlePomodoroPhaseEnd(phaseEndMessage: PomodoroPhaseEndMessage) {
         Log.d(TAG, "Pomodoro phase ended: $phaseEndMessage")
-        TODO("Not yet implemented $phaseEndMessage")
+        // TODO: Handle pomodoro phase end event
     }
 
     private fun handlePomodoroSessionEnd(sessionEndMessage: PomodoroSessionEndMessage) {
         Log.d(TAG, "Pomodoro session ended: $sessionEndMessage")
-        TODO("Not yet implemented $sessionEndMessage")
+        // TODO: Handle pomodoro session end event
     }
 
     private fun handleClientHello(clientHello: ClientHelloMessage) {
         Log.d(TAG, "Client hello: $clientHello")
-        TODO("Not yet implemented $clientHello")
+        // TODO: Handle client hello event
     }
 
     private fun handleUnknownEvent(unknownEvent: UnknownEvent) {
         Log.d(TAG, "Unknown event: $unknownEvent")
-        TODO("Not yet implemented $unknownEvent")
+        // TODO: Handle unknown event
     }
 
 

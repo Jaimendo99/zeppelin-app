@@ -59,6 +59,7 @@ class LiveSessionService : Service() {
     ): Int {
         when (intent?.action) {
             Action.START.name -> {
+                Log.d(TAG, "Starting service...")
                 val courseId = intent.getIntExtra("courseId", -1)
                 val retry = intent.getBooleanExtra("retry", false)
                 startForeground(
@@ -93,13 +94,20 @@ class LiveSessionService : Service() {
             wsClient.state.collect { state ->
                 val (notiTitle, text) = when (state) {
                     WebSocketState.Idle -> "Live Session" to "Idle"
-                    WebSocketState.Connecting -> "Live Session" to "Connecting..."
+                    WebSocketState.Connecting -> {
+                        Log.d(TAG, "WebSocket connecting")
+                        "Live Session" to "Connecting..."
+                    }
                     is WebSocketState.Connected -> {
+                        Log.d(TAG, "WebSocket connected ${state.lastCourseId}")
                         currentCourseId = state.lastCourseId
                         "$title $currentCourseId" to
                                 "Connected"
                     }
-                    WebSocketState.Disconnected -> "$title $currentCourseId" to "Disconnected"
+                    WebSocketState.Disconnected -> {
+                        Log.d(TAG, "WebSocket disconnected")
+                        "$title $currentCourseId" to "Disconnected"
+                    }
                     is WebSocketState.Error -> "$title $currentCourseId" to "Error: ${state.message}"
                 }
 

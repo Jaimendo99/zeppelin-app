@@ -30,7 +30,14 @@ import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun CourseDetailHeader(modifier: Modifier = Modifier , course: String, description: String, subject: String, id:Int, isLoading : Boolean = false) {
+fun CourseDetailHeader(
+    modifier: Modifier = Modifier,
+    course: String,
+    description: String,
+    subject: String,
+    id: Int,
+    isLoading: Boolean = false
+) {
     val transScope = LocalSharedTransitionScopes.current
     CompositionLocalProvider(LocalContentColor provides Color.White) {
         with(transScope.sharedTransitionScope) {
@@ -61,7 +68,8 @@ fun CourseDetailHeader(modifier: Modifier = Modifier , course: String, descripti
                             state = rememberSharedContentState("subject/$id/$subject"),
                             animatedVisibilityScope = transScope.animatedVisibilityScope
                         ),
-                        text = subject, style = MaterialTheme.typography.bodyMedium)
+                        text = subject, style = MaterialTheme.typography.bodyMedium
+                    )
                     else LoadingText(
                         length = 10,
                         textStyle = MaterialTheme.typography.bodyMedium
@@ -84,7 +92,7 @@ fun CourseDetailHeaderImage(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     courseDetailUI: CourseDetailUI = CourseDetailUI(),
-){
+) {
     AsyncImage(
         model = courseDetailUI.imageUrl,
         contentDescription = null,
@@ -123,7 +131,7 @@ fun CourseDetailHeaderPreview() {
         description = "Este curso es sobre el tema 2 del libro donde se habla de las matrices y como hacer opraciones aritmetricas",
         subject = "Matemáticas",
         isLoading = true,
-        id =1
+        id = 1
     )
 
 }

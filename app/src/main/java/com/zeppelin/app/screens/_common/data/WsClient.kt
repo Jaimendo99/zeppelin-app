@@ -4,15 +4,11 @@ import android.util.Log
 import com.zeppelin.app.screens.auth.data.IAuthPreferences
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
-import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.path
 import io.ktor.websocket.CloseReason
@@ -20,6 +16,9 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readReason
 import io.ktor.websocket.readText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +26,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.SerializationException
 
@@ -37,9 +36,13 @@ class WebSocketClient(
     private val TAG = "WebSocketClient"
     private var session: DefaultClientWebSocketSession? = null
 
-    private val host = "api.focused.uno"
+    private val host = "16.api.focused.uno"
     private val path = "/ws"
     private val platform = "mobile"
+
+    private val listenerScope = CoroutineScope(
+        Dispatchers.IO + SupervisorJob()
+    )
 
     private val _state = MutableStateFlow<WebSocketState>(WebSocketState.Idle)
     val state: StateFlow<WebSocketState> = _state.asStateFlow()
@@ -53,14 +56,6 @@ class WebSocketClient(
     private val client = HttpClient(CIO) {
         install(WebSockets) {
             pingIntervalMillis = 20_000
-        }
-        install(Logging) {
-            level = LogLevel.ALL
-            logger = object : Logger {
-                override fun log(message: String) {
-                    Log.v(TAG, message)
-                }
-            }
         }
     }
 
@@ -78,10 +73,7 @@ class WebSocketClient(
                     return
                 }
                 if (retry) {
-                    Log.d(
-                        TAG,
-                        "Already connected to a different course, reconnecting to course $courseId"
-                    )
+                    Log.d(TAG, "Already connected to a course, reconnecting to course $courseId")
                     disconnect()
                     connectWithRetry(courseId) { connectToSession(it) }
                 } else {
@@ -102,66 +94,69 @@ class WebSocketClient(
     }
 
     private suspend fun connectToSession(courseId: Int): Result<Unit> {
-        _state.value = WebSocketState.Connecting
-        authPreferences.getAuthTokenOnce().let { token ->
-            if (token.isNullOrEmpty()) return@let
-            try {
-                session = client.webSocketSession {
-                    url {
-                        host = this@WebSocketClient.host
-                        port = 443
-                        protocol = URLProtocol.WSS
-                        method = HttpMethod.Get
-                        path(path)
-                        parameter("token", token)
-                        parameter("platform", platform)
-                        parameter("courseId", courseId)
-                    }
-                }
-                _state.value = WebSocketState.Connected(courseId)
-            } catch (e: Exception) {
-                _state.value = WebSocketState.Error("Error connecting to WebSocket", e)
-                Log.e(TAG, "Error connecting to WebSocket", e)
-                return Result.failure(e)
-            }
-            session?.let { listenIncomingMessages(it) }
+        val token = authPreferences.getAuthTokenOnce()
+        if (token.isNullOrEmpty()) {
+            return Result.failure(IllegalStateException("Missing auth token"))
         }
-        return Result.success(Unit)
+        return try {
+            val ws = client.webSocketSession {
+                url {
+                    protocol = URLProtocol.WSS
+                    host = this@WebSocketClient.host
+                    port = 443
+                    path(path)
+                    parameter("token", token)
+                    parameter("platform", platform)
+                    parameter("courseId", courseId)
+                }
+            }
+            session = ws
+            listenerScope.launch {
+                listenIncomingMessages(ws)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "connectToSession failed", e)
+            Result.failure(e)
+        }
     }
 
+
     private suspend fun connectWithRetry(
-        courseId: Int = -1,
-        maxRetries: Int = 2,
-        initialDelayMillis: Long = 1000L,
-        maxDelayMillis: Long = 16000L,
+        courseId: Int,
+        maxRetries: Int = 3,
+        initialDelayMillis: Long = 1_000L,
+        maxDelayMillis: Long = 16_000L,
         factor: Double = 2.0,
         connectFunction: suspend (Int) -> Result<Unit>
     ) {
         _state.value = WebSocketState.Connecting
-        var currentDelay = initialDelayMillis
+        var delayMs = initialDelayMillis
+        var lastError: Throwable? = null
+
         for (attempt in 1..maxRetries) {
-            connectFunction(courseId)
-                .onSuccess { _ ->
-                    _state.update { WebSocketState.Connected(courseId) }
-                    Log.d(TAG, "Connection successful on attempt $attempt")
-                    return
-                }
-                .onFailure { error ->
-                    _state.value = WebSocketState.Error("Connection attempt $attempt failed", error)
-                    Log.e(TAG, "Connection attempt $attempt failed: ${error.message}")
+            val result = connectFunction(courseId)
 
-                    if (attempt == maxRetries) {
-                        Log.e(TAG, "Max retries reached. Giving up.")
-                        _state.value =
-                            WebSocketState.Error("Max retries reached. Giving up.", error)
-                        return@onFailure
-                    }
-                    delay(currentDelay)
-                    currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelayMillis)
-                }
+            if (result.isSuccess) {
+                Log.d(TAG, "Connected on attempt $attempt")
+                _state.value = WebSocketState.Connected(courseId)
+                return
+            }
+
+            lastError = result.exceptionOrNull()
+            Log.w(TAG, "Attempt $attempt failed: ${lastError?.message}")
+
+            if (attempt < maxRetries) {
+                delay(delayMs)
+                delayMs = (delayMs * factor).toLong().coerceAtMost(maxDelayMillis)
+            }
         }
-
+        _state.value = WebSocketState.Error(
+            message = "Failed to connect after $maxRetries attempts",
+            cause = lastError
+        )
     }
+
 
 
     private suspend fun listenIncomingMessages(session: DefaultClientWebSocketSession) {
@@ -216,7 +211,7 @@ class WebSocketClient(
         session?.let {
             try {
                 it.close(CloseReason(CloseReason.Codes.NORMAL, "Client closed connection"))
-                Log.d(TAG, "Disconnected")
+                Log.d(TAG, "Disconnected from WebSocket")
                 _state.value = WebSocketState.Disconnected
             } catch (e: Exception) {
                 Log.e(TAG, "Error disconnecting", e)
@@ -227,8 +222,6 @@ class WebSocketClient(
         }
     }
 
-
-
     private suspend fun receiveTextMessage(frame: Frame.Text) {
         val text = frame.readText()
         Log.d(TAG, "Received text: $text")
@@ -238,7 +231,10 @@ class WebSocketClient(
                 text
             )
         } catch (e: SerializationException) {
-            Log.w(TAG, "Failed to deserialize text into known WebSocketEvent: ${e.message}. Treating as UnknownEvent.")
+            Log.w(
+                TAG,
+                "Failed to deserialize text into known WebSocketEvent: ${e.message}. Treating as UnknownEvent."
+            )
             UnknownEvent(rawText = text)
 
         } catch (e: Exception) {
@@ -259,7 +255,6 @@ class WebSocketClient(
     fun setConnectionState(state: WebSocketState) {
         _state.value = state
     }
-
 }
 
 sealed class WebSocketState {

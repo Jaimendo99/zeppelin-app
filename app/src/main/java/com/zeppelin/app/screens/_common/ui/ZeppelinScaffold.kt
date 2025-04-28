@@ -1,5 +1,6 @@
 package com.zeppelin.app.screens._common.ui
 
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,12 +36,23 @@ fun ZeppelinScaffold(
 ) {
     val currentRoute =
         navController.currentBackStackEntryAsState().value?.destination?.route
+    Log.d("Scaffold", "currentRoute: $currentRoute")
+
+    val state = when (currentRoute) {
+        Screens.Courses.route,
+        Screens.CourseDetail.route,
+        Screens.CourseSession.route -> true
+        null -> false
+        else -> false
+    }
+
     Scaffold(
         // Set the content padding to account for system bars content
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             ZeppelinTopBar(
                 screen = currentRoute,
+                state = state,
                 navController = navController,
                 onProfileLongPressed = { viewModel.onProfileLongPressed() })
         },
@@ -58,16 +70,11 @@ fun ZeppelinScaffold(
 @Composable
 fun ZeppelinTopBar(
     screen: String?,
+    state: Boolean,
     navController: NavHostController,
     onProfileLongPressed: () -> Unit
 ) {
-    val state = when (screen) {
-        Screens.Courses.route,
-        Screens.CourseDetail.route,
-        Screens.CourseSession.route -> true
 
-        else -> false
-    }
     AnimatedContent(
         targetState =
         state,
