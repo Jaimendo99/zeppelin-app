@@ -3,13 +3,14 @@ package com.zeppelin.app.screens.courseDetail.ui
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeppelin.app.screens._common.data.PomodoroState
 import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.data.ICourseDetailRepo
 import com.zeppelin.app.screens.courseDetail.domain.toCourseDetailUI
-import kotlinx.coroutines.delay
+import com.zeppelin.app.screens.nav.Screens
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +20,7 @@ import kotlinx.coroutines.launch
 class CourseDetailsViewModel(
     private val courseDetailRepo: ICourseDetailRepo,
     webSocketClient: WebSocketClient,
-    private val sessionEventsManager: SessionEventsManager
+    eventsManager: SessionEventsManager
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<String>()
@@ -31,14 +32,13 @@ class CourseDetailsViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    val pomodoroState: StateFlow<PomodoroState> = eventsManager.pomodoroState
+
     val webSocketState: StateFlow<WebSocketState> = webSocketClient.state
 
     private val TAG = "CourseDetailViewModel"
 
     init {
-        viewModelScope.launch {
-            sessionEventsManager.observeEvents({ courseDetailRepo.disconnectFromSession() })
-        }
         viewModelScope.launch {
             webSocketClient.state.collect { state ->
                 when (state) {
@@ -72,11 +72,18 @@ class CourseDetailsViewModel(
         }
     }
 
-    fun onSessionStartClick() {
-        val currentSessionId = webSocketState.value
+    fun onDisconnect() {
+        viewModelScope.launch {
+            courseDetailRepo.disconnectFromSession()
+            _events.emit(Screens.Courses.route)
+        }
+    }
+
+    fun onSessionStartClick(sessionId:Int) {
+        Log.d(TAG, "onSessionStartClick called with sessionId: $sessionId")
         if (webSocketState.value is WebSocketState.Connected) {
             viewModelScope.launch {
-                _events.emit("courseSession/$currentSessionId")
+                _events.emit("courseSession/$sessionId")
             }
         } else {
             Log.w(TAG, "onSessionStartClick called but session not ready or ID is empty.")

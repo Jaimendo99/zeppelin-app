@@ -9,4 +9,9 @@
     <string name="test">Cuestionarios</string>
     <string name="grades">Calificaciones</string>
     <string name="progress">Progreso</string>
+    <string name="next_in">Siguiente %1$s en:</string>
+    <string name="workPhase">Fase de Trabajo</string>
+    <string name="breakPhase">"Fase de descanso "</string>
+    <string name="session_not_started">Sesión por empezar</string>
+    <string name="nosession">No empieza</string>
 </resources>

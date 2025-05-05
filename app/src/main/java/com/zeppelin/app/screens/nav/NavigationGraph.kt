@@ -1,9 +1,12 @@
 package com.zeppelin.app.screens.nav
 
+import android.util.Log
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -92,18 +95,21 @@ fun NavigationGraph(
                 }
             }
 
-            composable(Screens.CourseSession.route) { bse ->
-                val sessionId = bse.arguments?.getString("sessionId")
-                CompositionLocalProvider(
-                    LocalSharedTransitionScopes provides SharedTransitionScopes(
-                        this, this@SharedTransitionLayout
-                    )
-                ) {
-                    CourseSessionScreen(
-                        modifier = Modifier,
-                        sessionId = sessionId,
-                        courseViewModel = koinViewModel<CourseSessionViewModel>()
-                    )
+            composable(Screens.CourseSession.route) { backStackEntry ->
+                Log.d("CourseSession", "ID: ${backStackEntry.arguments?.getString("id")}")
+                backStackEntry.arguments?.getString("sessionId")?.let { id ->
+                    CompositionLocalProvider(
+                        LocalSharedTransitionScopes provides SharedTransitionScopes(
+                            this, this@SharedTransitionLayout
+                        )
+                    ) {
+                        CourseSessionScreen(
+                            modifier = Modifier,
+                            id = id,
+                            navController = navController,
+                            courseViewModel = koinViewModel<CourseDetailsViewModel>(),
+                        )
+                    }
                 }
             }
             composable(Screens.Profile.route) {

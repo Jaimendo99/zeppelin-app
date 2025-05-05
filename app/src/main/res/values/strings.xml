@@ -8,4 +8,9 @@
     <string name="test">Tests</string>
     <string name="grades">Grades</string>
     <string name="progress">Progress</string>
+    <string name="next_in">Next %1$s in:</string>
+    <string name="workPhase">Work Phase</string>
+    <string name="breakPhase">Break Phase</string>
+    <string name="session_not_started">Session about to start</string>
+    <string name="nosession">Not started</string>
 </resources>

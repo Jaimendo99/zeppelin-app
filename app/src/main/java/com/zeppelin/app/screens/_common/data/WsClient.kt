@@ -4,6 +4,9 @@ import android.util.Log
 import com.zeppelin.app.screens.auth.data.IAuthPreferences
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.sendSerialized
@@ -36,7 +39,7 @@ class WebSocketClient(
     private val TAG = "WebSocketClient"
     private var session: DefaultClientWebSocketSession? = null
 
-    private val host = "16.api.focused.uno"
+    private val host = "api.focused.uno"
     private val path = "/ws"
     private val platform = "mobile"
 
@@ -57,7 +60,18 @@ class WebSocketClient(
         install(WebSockets) {
             pingIntervalMillis = 20_000
         }
+
+        install(Logging) { // Add Logging feature
+            logger = object : Logger {
+                override fun log(message: String) {
+                    Log.d(TAG, message) // Use Android Log for logging
+                }
+            }
+            level = LogLevel.ALL // Log everything
+        }
+
     }
+
 
 
     suspend fun connect(courseId: Int, retry: Boolean = false) {
