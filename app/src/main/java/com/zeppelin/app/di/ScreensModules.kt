@@ -28,7 +28,8 @@ val courseDetailModules = module {
     single<IAuthPreferences> { AuthPreferences(get()) }
     single<WebSocketClient> { WebSocketClient(get()) }
 
-    single<SessionEventsManager>{ SessionEventsManager(get())}
+
+    single<SessionEventsManager>{ SessionEventsManager()}
 
     single<ICourseDetailRepo> { CourseDetailRepo(context = get()) }
     viewModel { CourseDetailsViewModel(get(), get(), get()) }
@@ -36,6 +37,6 @@ val courseDetailModules = module {
 
 val courseSessionModules = module {
     single<ICourseSessionRepo> { CourseSessionRepo() }
-    viewModel { CourseSessionViewModel(get()) }
+    viewModel { CourseSessionViewModel(get(), get()) }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -40,6 +41,7 @@ fun ButtonWithLoader(
     onClick: () -> Unit = {},
     onLongPress: (() -> Unit)? = null,
     isLoading: Boolean = false,
+    colors: ButtonColors = ButtonDefaults.buttonColors(),
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -48,23 +50,12 @@ fun ButtonWithLoader(
     }
     val enabled = !isLoading
 
-    val containerColor = if (enabled) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    }
-    val contentColor = if (enabled) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
-
     val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
         shape = ButtonDefaults.shape,
-        color = containerColor,
-        contentColor = contentColor,
+        color = colors.containerColor,
+        contentColor = colors.contentColor,
         modifier = modifier
             .clip(ButtonDefaults.shape)
             .combinedClickable(

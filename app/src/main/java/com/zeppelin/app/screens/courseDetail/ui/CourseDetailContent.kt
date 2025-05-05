@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.zeppelin.app.SharedTransitionScopes
+import com.zeppelin.app.screens._common.data.PomodoroState
 import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 
@@ -37,7 +39,7 @@ fun CourseContent(
     onRetryConnection: () -> Unit,
     onLongPressStartAnimation: () -> Unit,
     onButtonPositioned: (position: Offset, size: IntSize) -> Unit,
-    sharedScopes: SharedTransitionScopes
+    sharedScopes: SharedTransitionScopes,
 ) {
     with(sharedScopes.sharedTransitionScope) {
         Column(modifier = modifier) {

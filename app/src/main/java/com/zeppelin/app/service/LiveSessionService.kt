@@ -12,10 +12,12 @@ import androidx.core.app.NotificationCompat
 import com.zeppelin.app.MainActivity
 import com.zeppelin.app.R
 import com.zeppelin.app.screens._common.data.ClientHelloMessage
+import com.zeppelin.app.screens._common.data.CurrentPhase
 import com.zeppelin.app.screens._common.data.PomodoroExtendMessage
 import com.zeppelin.app.screens._common.data.PomodoroPhaseEndMessage
 import com.zeppelin.app.screens._common.data.PomodoroSessionEndMessage
 import com.zeppelin.app.screens._common.data.PomodoroStartMessage
+import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.StatusUpdateMessage
 import com.zeppelin.app.screens._common.data.UnknownEvent
 import com.zeppelin.app.screens._common.data.WebSocketClient
@@ -29,8 +31,10 @@ import org.koin.android.ext.android.inject
 
 class LiveSessionService : Service() {
 
+    private val webSocketClient by inject<WebSocketClient>()
+    private val eventsManager by inject<SessionEventsManager>()
+
     private val TAG = "LiveSessionService"
-    private val wsClient: WebSocketClient by inject()
 
     private lateinit var notificationManager: NotificationManager
     private val serviceScope =
@@ -46,10 +50,10 @@ class LiveSessionService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service onCreate")
-        notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         observeWebSocketState()
-        observeIncomingMessages()
+        observeIncomingEvents()
+        observePomodoroState()
     }
 
     override fun onStartCommand(
@@ -66,22 +70,27 @@ class LiveSessionService : Service() {
                     NOTIFICATION_ID,
                     buildNotification("Starting session...", currentCourseId).build()
                 )
-                serviceScope.launch { wsClient.connect(courseId, retry) }
+                serviceScope.launch { webSocketClient.connect(courseId, retry) }
             }
 
             Action.STOP.name -> {
                 Log.d(TAG, "Stopping service...")
-                serviceScope.launch {
-                    wsClient.disconnect()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
-                }
+                onStop()
             }
         }
         return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun onStop() {
+        Log.d(TAG, "Stopping service...")
+        serviceScope.launch {
+            webSocketClient.disconnect()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -91,44 +100,49 @@ class LiveSessionService : Service() {
     private fun observeWebSocketState() {
         val title = "Live Session for Course ID"
         serviceScope.launch {
-            wsClient.state.collect { state ->
+            webSocketClient.state.collect { state ->
                 val (notiTitle, text) = when (state) {
                     WebSocketState.Idle -> "Live Session" to "Idle"
                     WebSocketState.Connecting -> {
                         Log.d(TAG, "WebSocket connecting")
                         "Live Session" to "Connecting..."
                     }
+
                     is WebSocketState.Connected -> {
                         Log.d(TAG, "WebSocket connected ${state.lastCourseId}")
                         currentCourseId = state.lastCourseId
                         "$title $currentCourseId" to
                                 "Connected"
                     }
+
                     WebSocketState.Disconnected -> {
                         Log.d(TAG, "WebSocket disconnected")
                         "$title $currentCourseId" to "Disconnected"
                     }
+
                     is WebSocketState.Error -> "$title $currentCourseId" to "Error: ${state.message}"
                 }
 
                 notificationManager.notify(
                     NOTIFICATION_ID,
-                    buildNotification(text, currentCourseId, notiTitle).build()
+                    buildNotification(text, currentCourseId, notiTitle, false).build()
                 )
             }
         }
     }
 
-    private fun observeIncomingMessages() {
+    private fun observePomodoroState() {
         serviceScope.launch {
-            wsClient.incomingMessages.collect { msg ->
-                if (wsClient.state.value is WebSocketState.Connected) {
+            eventsManager.pomodoroState.collect { state ->
+                if (webSocketClient.state.value is WebSocketState.Connected) {
                     notificationManager.notify(
                         NOTIFICATION_ID,
                         buildNotification(
-                            msg,
+                            state.timerDisplay,
                             currentCourseId,
-                            "Live Session for Course ID: $currentCourseId"
+                            "Live Session for Course ID: $currentCourseId",
+                            colored = state.isRunning,
+                            phase = state.currentPhase
                         ).build()
                     )
                 }
@@ -136,18 +150,26 @@ class LiveSessionService : Service() {
         }
     }
 
-    private fun observeInconmingEvents(){
+    private fun observeIncomingEvents() {
         serviceScope.launch {
-            wsClient.wsEvents.collect { event ->
-                if (wsClient.state.value is WebSocketState.Connected) {
+            webSocketClient.wsEvents.collect { event ->
+                if (webSocketClient.state.value is WebSocketState.Connected) {
                     when (event) {
-                        is ClientHelloMessage -> TODO()
-                        is PomodoroExtendMessage -> TODO()
-                        is PomodoroPhaseEndMessage -> TODO()
-                        is PomodoroSessionEndMessage -> TODO()
-                        is PomodoroStartMessage -> TODO()
-                        is StatusUpdateMessage -> TODO()
-                        is UnknownEvent -> TODO()
+                        is ClientHelloMessage -> eventsManager.handleClientHello(event)
+                        is PomodoroExtendMessage -> eventsManager.handlePomodoroExtend(event)
+                        is PomodoroPhaseEndMessage -> eventsManager.handlePomodoroPhaseEnd(
+                            serviceScope,
+                            event
+                        )
+
+                        is PomodoroSessionEndMessage -> eventsManager.handlePomodoroSessionEnd(event)
+                        is PomodoroStartMessage -> eventsManager.handlePomodoroStart(
+                            serviceScope,
+                            event
+                        )
+
+                        is StatusUpdateMessage -> eventsManager.handleStatusUpdate(event) { onStop() }
+                        is UnknownEvent -> eventsManager.handleUnknownEvent(event)
                     }
 
                 }
@@ -158,8 +180,17 @@ class LiveSessionService : Service() {
     private fun buildNotification(
         contentText: String,
         courseId: Int,
-        contentTitle: String = "Live Session for Course ID: $courseId"
+        contentTitle: String = "Live Session for Course ID: $courseId",
+        colored: Boolean = true,
+        phase: CurrentPhase = CurrentPhase.WORK
     ): NotificationCompat.Builder {
+
+        val notiColor = when (phase) {
+            CurrentPhase.WORK -> resources.getColor(R.color.primaryContainerDark, null)
+            CurrentPhase.BREAK-> resources.getColor(R.color.secondaryContainerDark, null)
+            else -> resources.getColor(R.color.primaryContainerDark, null)
+        }
+
         // clicking takes you back to MainActivity with the courseId in extras
         val contentIntent = Intent(this, MainActivity::class.java).apply {
             putExtra("courseId", courseId)
@@ -189,7 +220,10 @@ class LiveSessionService : Service() {
                     .bigText(contentText)
                     .setBigContentTitle(contentTitle)
             )
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setOnlyAlertOnce(true)
+            .setColorized(colored)
+            .setColor(notiColor)
     }
 
     enum class Action {
