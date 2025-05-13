@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.zeppelin.app.db.PreferencesKeys
 import com.zeppelin.app.db.dataStore
-import io.ktor.util.debug.useContextElementInDebugMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map

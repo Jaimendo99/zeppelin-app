@@ -1,8 +1,11 @@
 package com.zeppelin.app.screens.auth.data
 
 import android.util.Log
+import com.zeppelin.app.screens._common.data.ApiClient
 import com.zeppelin.app.screens.auth.domain.NetworkResult
 import com.zeppelin.app.screens.auth.domain.safeApiCall
+import com.zeppelin.app.service.pushNotifications.FcmRepository
+import com.zeppelin.app.service.pushNotifications.IFcmRepository
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -15,16 +18,21 @@ import io.ktor.http.Parameters
 import io.ktor.http.contentType
 
 
-class AuthRepository(private val networkClient: AuthNetworkClient) : IAuthRepository {
-    val Tag  = "AuthRepository"
+class AuthRepository(
+    private val networkClient: AuthNetworkClient,
+) : IAuthRepository {
+    val Tag = "AuthRepository"
 
-    override suspend fun login(email: String, password: String): NetworkResult<Session.SessionToken, ErrorResponse> {
+    override suspend fun login(
+        email: String,
+        password: String
+    ): NetworkResult<Session.SessionToken, ErrorResponse> {
         val response = networkClient.signIn(SignInRequest(identifier = email, password = password))
         Log.d(Tag, "login: $response")
-        when(response){
-            is NetworkResult.Error -> {
-                Log.d(Tag, "Error: login: ${response.errorBody}")
-                return NetworkResult.Error(response.errorBody?.errors?.get(0)?.message)}
+        when (response) {
+            is NetworkResult.Error -> { Log.d(Tag, "Error: login: ${response.errorBody}")
+                return NetworkResult.Error(response.errorBody?.errors?.get(0)?.message)
+            }
             NetworkResult.Idle -> return NetworkResult.Idle
             NetworkResult.Loading -> return NetworkResult.Loading
             is NetworkResult.Success -> {
@@ -40,19 +48,24 @@ class AuthRepository(private val networkClient: AuthNetworkClient) : IAuthReposi
     override suspend fun logout() {
         TODO()
     }
+
 }
 
-private suspend fun AuthNetworkClient.getLongerToken(sessionID:String, lastToken : String, jwtTemplate:String = "jwt_template_v1") : NetworkResult<Session.SessionToken, ErrorResponse>{
+private suspend fun AuthNetworkClient.getLongerToken(
+    sessionID: String,
+    lastToken: String,
+    jwtTemplate: String = "jwt_template_v1"
+): NetworkResult<Session.SessionToken, ErrorResponse> {
     val SERVER_URL = "https://api.focused.uno"
     return safeApiCall {
-         client.get("$SERVER_URL/tokenFromSession") {
+        client.get("$SERVER_URL/tokenFromSession") {
             parameter("sessionId", sessionID)
             parameter("template", jwtTemplate)
             headers {
                 append(HttpHeaders.Authorization, "Bearer $lastToken")
             }
         }
-        }
+    }
 }
 
 private suspend fun AuthNetworkClient.signIn(

@@ -2,6 +2,7 @@ package com.zeppelin.app.screens.courses.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailRepo
 import com.zeppelin.app.screens.courseDetail.data.ICourseDetailRepo
 import com.zeppelin.app.screens.courses.data.CourseCardData
@@ -17,7 +18,6 @@ import kotlinx.coroutines.launch
 
 class CourseViewModel(
     private val repository: ICoursesRepository,
-//    private val detailRepo: ICourseDetailRepo
 ) : ViewModel() {
 
     private val _courses = MutableStateFlow<List<CourseCardData>>(emptyList())
@@ -50,7 +50,6 @@ class CourseViewModel(
 
     fun onCourseClick(courseId: Int) {
         viewModelScope.launch {
-//            detailRepo.connectToSession(courseId)
             _enableClick.value = false
             _events.emit("courseDetail/$courseId")
             delay(500)

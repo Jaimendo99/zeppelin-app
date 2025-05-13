@@ -47,7 +47,7 @@ fun NavigationGraph(
         NavHost(
             modifier = modifier,
             navController = navController,
-                startDestination = if (isAuthenticated.value) "main" else "auth",
+            startDestination = if (isAuthenticated.value) "main" else "auth",
         ) {
             navigation(startDestination = Screens.Login.route, route = "auth") {
                 composable(Screens.Login.route) {

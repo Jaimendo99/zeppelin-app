@@ -80,6 +80,7 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.androidx.workmanager)
 
 //   ktor dependencies
     implementation(libs.ktor.client.core)
@@ -90,10 +91,15 @@ dependencies {
     implementation(libs.ktor.client.serialization)
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.client.auth)
 
     //datastore
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.splashscreen)
+
+    //worker
+    implementation(libs.androidx.work.runtime.ktx)
+
 
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
     implementation("com.google.firebase:firebase-messaging")

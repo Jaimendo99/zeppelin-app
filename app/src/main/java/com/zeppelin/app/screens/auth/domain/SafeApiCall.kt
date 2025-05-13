@@ -32,7 +32,7 @@ suspend inline fun <reified T, reified E> safeApiCall(
     }
     return try {
         val response = apiCall()
-
+        Log.d("SafeApiCall", "Response status: ${response.bodyAsText()}")
         when (response.status.value) {
             in 200..299 -> {
                 NetworkResult.Success(response.body<T>())

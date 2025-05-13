@@ -23,6 +23,5 @@ class AuthNetworkClient {
         defaultRequest { url("https://crucial-woodcock-33.clerk.accounts.dev/v1/") }
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
         install(Logging) { logger = Logger.SIMPLE }
-
     }
 }

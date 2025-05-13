@@ -6,8 +6,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -20,6 +25,11 @@ class SessionEventsManager {
     private val _pomodoroState = MutableStateFlow(PomodoroState.Initial) // Start with initial state
     val pomodoroState: StateFlow<PomodoroState> = _pomodoroState.asStateFlow()
 
+    private val _pinningUiEventFlow = MutableSharedFlow<PinningUiEvent>(replay = 0) // No replay needed for events
+    val pinningUiEventFlow: SharedFlow<PinningUiEvent> = _pinningUiEventFlow.asSharedFlow()
+
+    private var wasPreviouslyInWorkPhase: Boolean = false
+    
     private var timerJob: Job? = null
 
     private val currentRemainingSeconds = AtomicInteger(0)
@@ -41,6 +51,14 @@ class SessionEventsManager {
         if (statusUpdate.platforms.web == 0) {
             Log.w(TAG, "Web client disconnected, potentially ending session.")
             _pomodoroState.value = PomodoroState.Initial // Reset state
+            if (wasPreviouslyInWorkPhase) {
+                // Assuming handleStatusUpdate is called from a context with a CoroutineScope.
+                // If not, this launch needs a scope. For now, using a local scope.
+                // Ideally, the scope passed to handlePomodoroStart/PhaseEnd could be stored and reused,
+                // or SessionEventsManager itself could have its own lifecycle-aware scope.
+                CoroutineScope(Dispatchers.Default).launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
+                wasPreviouslyInWorkPhase = false
+            }
             disconnectFunction()
         } else {
             Log.d(TAG, "WebSocket is connected")
@@ -66,6 +84,12 @@ class SessionEventsManager {
         _pomodoroState.value = initialState
         currentRemainingSeconds.set(initialState.remainingSeconds)
         startTimer(scope)
+
+        // Pomodoro always starts with WORK phase
+        if (!wasPreviouslyInWorkPhase) {
+            scope.launch { _pinningUiEventFlow.emit(PinningUiEvent.StartPinning) }
+            wasPreviouslyInWorkPhase = true
+        }
     }
 
     @OptIn(ExperimentalTime::class)
@@ -102,6 +126,10 @@ class SessionEventsManager {
 
         if (phaseEndMessage.isLastCycle && phaseEndMessage.isBreakFinished) {
             Log.d(TAG, "Last cycle break finished according to server.")
+            if (wasPreviouslyInWorkPhase) {
+                scope.launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
+                wasPreviouslyInWorkPhase = false
+            }
         } else {
             val nextPhase = phaseEndMessage.continueAs
             val nextDuration = if (nextPhase == CurrentPhase.WORK) {
@@ -122,6 +150,14 @@ class SessionEventsManager {
             _pomodoroState.value = newState
             currentRemainingSeconds.set(nextDuration)
             startTimer(scope)
+
+            if (nextPhase == CurrentPhase.WORK && !wasPreviouslyInWorkPhase) {
+                scope.launch { _pinningUiEventFlow.emit(PinningUiEvent.StartPinning) }
+                wasPreviouslyInWorkPhase = true
+            } else if (nextPhase != CurrentPhase.WORK && wasPreviouslyInWorkPhase) {
+                scope.launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
+                wasPreviouslyInWorkPhase = false
+            }
         }
     }
 
@@ -129,6 +165,14 @@ class SessionEventsManager {
         Log.d(TAG, "Pomodoro session ended: $sessionEndMessage")
         stopTimer()
         _pomodoroState.value = PomodoroState.Initial // Reset state
+        if (wasPreviouslyInWorkPhase) {
+            // Assuming SessionEventsManager has a CoroutineScope available, or one is passed in.
+            // If not, this launch needs to be handled appropriately.
+            // For simplicity, let's assume a default scope for this event,
+            // but ideally, it should use the same scope as other operations.
+             CoroutineScope(Dispatchers.Default).launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
+            wasPreviouslyInWorkPhase = false
+        }
     }
 
      fun handleClientHello(clientHello: ClientHelloMessage) {

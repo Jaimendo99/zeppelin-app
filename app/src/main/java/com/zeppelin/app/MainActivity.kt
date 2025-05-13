@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
+import com.zeppelin.app.screens._common.data.PinningUiEvent
+import com.zeppelin.app.screens._common.data.SessionEventsManager
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -32,6 +34,7 @@ import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     private val authManager : AuthManager by inject()
+    private val sessionEventsManager: SessionEventsManager by inject()
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +61,29 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 delay(1000)
                 keepSplash.value = !(isLoggedIn.value?: false)
+            }
+
+            LaunchedEffect(Unit) { // Key can be Unit as the flow itself doesn't change
+                sessionEventsManager.pinningUiEventFlow.collect { event ->
+                    when (event) {
+                        is PinningUiEvent.StartPinning -> {
+                            try {
+                                startLockTask()
+                                android.util.Log.d("MainActivity", "Called startLockTask() on PinningUiEvent.StartPinning")
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Failed to start lock task on event", e)
+                            }
+                        }
+                        is PinningUiEvent.StopPinning -> {
+                            try {
+                                stopLockTask()
+                                android.util.Log.d("MainActivity", "Called stopLockTask() on PinningUiEvent.StopPinning")
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Failed to stop lock task on event", e)
+                            }
+                        }
+                    }
+                }
             }
 
             ZeppelinTheme(dynamicColor = false) {
