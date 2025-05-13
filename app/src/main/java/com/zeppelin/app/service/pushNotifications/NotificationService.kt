@@ -1,4 +1,4 @@
-package com.zeppelin.app.service
+package com.zeppelin.app.service.pushNotifications
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,11 +7,36 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.zeppelin.app.R
+import com.zeppelin.app.screens.auth.domain.NetworkResult
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
 class NotificationService : FirebaseMessagingService() {
+
+    private val TAG = "NotificationService"
+
+    private val parentJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(parentJob + Dispatchers.IO)
+
+    private val fcmRepository: IFcmRepository by inject()
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("NotificationService", "Token: $token")
+        serviceScope.launch {
+            val userToken = UserFcmToken(
+                firebaseToken = token,
+                deviceInfo = "${android.os.Build.MODEL} ${android.os.Build.VERSION.SDK_INT}",
+            )
+            when (val result = fcmRepository.saveToken(userToken)) {
+                is NetworkResult.Success -> { Log.d(TAG, "Token saved successfully") }
+                is NetworkResult.Error -> { Log.e(TAG, "Error saving token: ${result.errorMessage}") }
+                NetworkResult.Idle, NetworkResult.Loading -> {Log.d(TAG, "Idle or loading")}
+            }
+            Log.d(TAG, "Token: $token")
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -28,7 +53,6 @@ class NotificationService : FirebaseMessagingService() {
                     " ${remoteMessage.notification?.body}"
         )
     }
-
 
     private fun showNotification(message: RemoteMessage) {
         createNotificationChannel()

@@ -2,7 +2,6 @@ package com.zeppelin.app.screens.auth.domain
 
 import android.util.Log
 import com.zeppelin.app.screens.auth.data.AuthPreferences
-import com.zeppelin.app.screens.auth.ui.LoginScreen
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
