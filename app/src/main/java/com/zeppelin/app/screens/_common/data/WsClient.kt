@@ -39,7 +39,7 @@ class WebSocketClient(
     private val TAG = "WebSocketClient"
     private var session: DefaultClientWebSocketSession? = null
 
-    private val host = "api.focused.uno"
+    private val host = "20.api.focused.uno"
     private val path = "/ws"
     private val platform = "mobile"
 
@@ -49,9 +49,6 @@ class WebSocketClient(
 
     private val _state = MutableStateFlow<WebSocketState>(WebSocketState.Idle)
     val state: StateFlow<WebSocketState> = _state.asStateFlow()
-
-    private val _incomingMessages = MutableSharedFlow<String>()
-    val incomingMessages: SharedFlow<String> = _incomingMessages.asSharedFlow()
 
     private val _wsEvents = MutableSharedFlow<WebSocketEvent>()
     val wsEvents: SharedFlow<WebSocketEvent> = _wsEvents.asSharedFlow()
@@ -255,7 +252,6 @@ class WebSocketClient(
             Log.e(TAG, "Unexpected error processing text message: $text", e)
             UnknownEvent(rawText = "Error during processing: $text")
         }
-        _incomingMessages.emit(text)
         Log.d(TAG, "Processed event: $event")
         _wsEvents.emit(event)
     }

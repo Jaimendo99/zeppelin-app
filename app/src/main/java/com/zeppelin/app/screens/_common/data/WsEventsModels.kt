@@ -30,6 +30,7 @@ data class Platforms(
 @SerialName("pomodoro_start")
 data class PomodoroStartMessage(
     val config: PomodoroConfig,
+    val startedAt: Long,
     val senderId: String
 ) : WebSocketEvent
 
@@ -38,7 +39,6 @@ data class PomodoroConfig(
     val workDuration: Int,
     val breakDuration: Int,
     val cycles: Int,
-    val startedAt: Long
 )
 
 @Serializable

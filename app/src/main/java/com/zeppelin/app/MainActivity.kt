@@ -26,6 +26,7 @@ import com.zeppelin.app.screens._common.ui.ScaffoldViewModel
 import com.zeppelin.app.screens._common.ui.ZeppelinScaffold
 import com.zeppelin.app.screens.auth.domain.AuthManager
 import com.zeppelin.app.screens.nav.NavigationGraph
+import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
 import com.zeppelin.app.ui.theme.ZeppelinTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,9 +36,13 @@ import org.koin.androidx.compose.koinViewModel
 class MainActivity : ComponentActivity() {
     private val authManager : AuthManager by inject()
     private val sessionEventsManager: SessionEventsManager by inject()
+    private val distractionDetectionManager: DistractionDetectionManager by inject()
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState) // Call super.onCreate first
+
+        // Request POST_NOTIFICATIONS permission
         if (ContextCompat.checkSelfPermission(
                 this,
                 permission.POST_NOTIFICATIONS
@@ -46,21 +51,28 @@ class MainActivity : ComponentActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(permission.POST_NOTIFICATIONS), 0)
         }
 
+        // Check and request Usage Stats permission
+        if (!distractionDetectionManager.hasUsageStatsPermission()) {
+            distractionDetectionManager.requestUsageStatsPermission()
+        }
+
         val keepSplash:MutableStateFlow<Boolean?>  = MutableStateFlow(null)
 
         installSplashScreen().apply {
             setKeepOnScreenCondition {
-                keepSplash.value == null
+                keepSplash.value == null || keepSplash.value == true // Keep splash if null or explicitly true
             }
         }
 
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             val isLoggedIn = authManager.observeAuthState().collectAsState(null)
-            LaunchedEffect(Unit) {
-                delay(1000)
-                keepSplash.value = !(isLoggedIn.value?: false)
+
+            LaunchedEffect(isLoggedIn.value) { // Re-evaluate when isLoggedIn.value changes
+                if (isLoggedIn.value != null) { // Only proceed if auth state is determined
+                    delay(1000) // Keep splash for a bit longer after auth state is known
+                    keepSplash.value = false // Hide splash
+                }
             }
 
             LaunchedEffect(Unit) { // Key can be Unit as the flow itself doesn't change

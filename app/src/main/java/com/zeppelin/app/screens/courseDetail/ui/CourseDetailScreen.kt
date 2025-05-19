@@ -41,7 +41,6 @@ import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.data.CourseProgressUI
 import com.zeppelin.app.screens.courseDetail.data.GradeUI
-import com.zeppelin.app.screens.courseDetail.data.SessionState
 import com.zeppelin.app.screens.courseDetail.domain.calculateInitialRadius
 import com.zeppelin.app.screens.courseDetail.domain.calculateMaxRadius
 import com.zeppelin.app.ui.theme.ZeppelinTheme
