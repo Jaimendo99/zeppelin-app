@@ -2,9 +2,6 @@ package com.zeppelin.app.screens.courses.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkManager
-import com.zeppelin.app.screens.courseDetail.data.CourseDetailRepo
-import com.zeppelin.app.screens.courseDetail.data.ICourseDetailRepo
 import com.zeppelin.app.screens.courses.data.CourseCardData
 import com.zeppelin.app.screens.courses.data.ICoursesRepository
 import com.zeppelin.app.screens.courses.domain.toCourseCardData
@@ -40,8 +37,18 @@ class CourseViewModel(
         }
     }
 
-    private suspend fun loadCourses() {
-        _courses.value = repository.getCourses().map { it.toCourseCardData() }
+    private fun loadCourses() {
+        _loading.value = true
+        viewModelScope.launch {
+            val result = repository.getCourses()
+            result
+            .onFailure {
+                _loading.value = false
+            }.onSuccess {
+                _courses.value = it.map { it.toCourseCardData() }
+            }
+        }
+        _loading.value = false
     }
 
     private suspend fun onProfileClick() {

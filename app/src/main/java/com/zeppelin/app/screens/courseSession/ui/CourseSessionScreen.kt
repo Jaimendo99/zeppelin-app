@@ -1,9 +1,11 @@
 package com.zeppelin.app.screens.courseSession.ui
 
+import android.util.Log
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.EaseInOutExpo
@@ -93,6 +95,12 @@ fun CourseSessionScreen(
         "yJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDIyMkFBQSIsImtpZCI6Imluc18ydFNyYW1TeGVIQ1Jld3NGZmFBM2U2UnlJRjAiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJodHRwczovL2FwaS5mb2N1c2VkLnVuby8iLCJlbWFpbCI6ImphaW1lbmRvOTlAZ21haWwuY29tIiwiZXhwIjoxNzQ3MDIzODYyLCJleHBfdG9rZW4iOiJ7e2p3dC5leHB9fSIsImlhdCI6MTc0NjQxOTA2MiwiaWF0XyI6Int7and0LmlhdH19IiwiaXNzIjoiaHR0cHM6Ly9jcnVjaWFsLXdvb2Rjb2NrLTMzLmNsZXJrLmFjY291bnRzLmRldiIsImp0aSI6IjkyNDlmZjIyNDdhY2VlZjU3MmY2IiwibmFtZSI6bnVsbCwibmJmIjoxNzQ2NDE5MDU3LCJwZXJtaXNzaW9ucyI6bnVsbCwicm9sZSI6Im9yZzphZG1pbiIsInN1YiI6InVzZXJfMnZXMURWaUlWWGpYSE9KTHhvVmhpY09HZzJBIiwic3VybmFtZSI6bnVsbCwidXNlcl9zdWIiOiJ1c2VyXzJ2VzFEVmlJVlhqWEhPSkx4b1ZoaWNPR2cyQSJ9.H0cIG575GFaBOl1YD-o3grnV8qDM9ZBJFH69miYZ6Hhm1epOWyynMcL_RVF4Y6dxWkFZD8XM-sEBKCrFqM6BgSn8t8u2_qMsfKQlWQrARHp-lKoHcxOpXPrecd2scgTxklOwR3xtueNZItC7BeB4agKOREnDyve1QbHfgLKich9gjUA6egrbQOhInLR6A-ppdNApOKBz6Ms1ZZAECKPrSH84CUnkQmqats8pbQSi9_kaQl0ZukQouVVQhw6xcB9kECvvEzTTiqLfVn9ytY2llhnM49Ji4SEj4F02YXrdDShbTNqv0NU6G3AQF-TUcNdymNQT7P2XNb2hIbMZ5LwlCA"
     )
 
+    BackHandler {
+        if (pomodoroState.currentPhase == CurrentPhase.WORK) {
+            Log.d("CourseSession", "End session")
+        }
+    }
+
     LaunchedEffect(Unit) {
         courseViewModel.events.collect { event ->
             navController.navigate(event) {
@@ -123,7 +131,6 @@ data class ContentViewData(
     val token: String = "",
 ) {
     companion object
-
     fun buildUrl(): String {
         return "$url?backgroundColor=${backgroundColor.toArgb()}&textColor=${textColor.toArgb()}"
     }

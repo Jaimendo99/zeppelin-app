@@ -2,6 +2,7 @@ package com.zeppelin.app.di
 
 import com.zeppelin.app.screens._common.data.ApiClient
 import com.zeppelin.app.screens._common.ui.ScaffoldViewModel
+import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
 import com.zeppelin.app.service.pushNotifications.FcmRepository
 import com.zeppelin.app.service.pushNotifications.IFcmRepository
 import com.zeppelin.app.service.pushNotifications.NotificationService
@@ -19,4 +20,5 @@ val pushNotificationModule = module {
     single { PushNotiPreferences(get()) }
     single<IFcmRepository>{ FcmRepository(get(), get()) }
     single { NotificationService() }
+    single { DistractionDetectionManager(get()) }
 }

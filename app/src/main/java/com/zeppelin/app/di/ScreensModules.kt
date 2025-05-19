@@ -19,7 +19,7 @@ import org.koin.dsl.module
 
 
 val courseModules = module {
-    single<ICoursesRepository> { CoursesRepository() }
+    single<ICoursesRepository> { CoursesRepository(get()) }
      viewModel { CourseViewModel(get()) }
 }
 
@@ -31,7 +31,7 @@ val courseDetailModules = module {
 
     single<SessionEventsManager>{ SessionEventsManager()}
 
-    single<ICourseDetailRepo> { CourseDetailRepo(context = get()) }
+    single<ICourseDetailRepo> { CourseDetailRepo(context = get(), get()) }
     viewModel { CourseDetailsViewModel(get(), get(), get()) }
 }
 

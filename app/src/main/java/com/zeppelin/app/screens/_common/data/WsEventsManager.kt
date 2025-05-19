@@ -73,13 +73,13 @@ class SessionEventsManager {
         val initialState = PomodoroState(
             isRunning = true,
             currentPhase = CurrentPhase.WORK, // Pomodoro always starts with work
-            remainingSeconds = calculateRemainingSeconds(config.startedAt, config.workDuration),
+            remainingSeconds = calculateRemainingSeconds(startMessage.startedAt, config.workDuration),
             currentCycle = 1,
             totalCycles = config.cycles,
             workDuration = config.workDuration,
             breakDuration = config.breakDuration,
-            timerDisplay = calculateRemainingSeconds( config.startedAt, config.workDuration ).formatTime(),
-            timerDigits = calculateRemainingSeconds(config.startedAt, config.workDuration).toTimerDigits()
+            timerDisplay = calculateRemainingSeconds( startMessage.startedAt, config.workDuration ).formatTime(),
+            timerDigits = calculateRemainingSeconds(startMessage.startedAt, config.workDuration).toTimerDigits()
         )
         _pomodoroState.value = initialState
         currentRemainingSeconds.set(initialState.remainingSeconds)

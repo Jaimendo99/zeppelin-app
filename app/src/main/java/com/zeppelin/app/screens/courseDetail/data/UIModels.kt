@@ -24,9 +24,3 @@ data class GradeUI(
     val grade: String,
     val dateGraded: String,
 )
-
-data class SessionState(
-    val sessionId: String = "",
-    val isSessionStarted: Boolean = false,
-    val isSessionLoading: Boolean = false,
-)
