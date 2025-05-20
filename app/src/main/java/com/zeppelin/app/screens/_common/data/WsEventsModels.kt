@@ -77,6 +77,17 @@ data class UnknownEvent(
     val rawText: String
 ) : WebSocketEvent
 
+@Serializable
+@SerialName("lock_task_removed")
+data class LockTaskRemovedEvent(
+    @SerialName("remove_at") val removedAt: Long,
+): WebSocketEvent
+
+enum class LockTaskModeStatus(){
+    LOCK_TASK_MODE_NONE, //    Constant Value: 0 (0x00000000)
+    LOCK_TASK_MODE_LOCKED, //    Constant Value: 1 (0x00000001)
+    LOCK_TASK_MODE_PINNED, //    Constant Value: 2 (0x00000002)
+}
 
 // --- Serializers Module for Polymorphism ---
 
@@ -89,8 +100,10 @@ val AppJsonModule = SerializersModule {
         subclass(PomodoroSessionEndMessage::class)
         subclass(ClientHelloMessage::class)
         subclass(UnknownEvent::class)
+        subclass(LockTaskRemovedEvent::class)
     }
 }
+
 
 data class PomodoroState(
     val isRunning: Boolean = false,
@@ -153,6 +166,7 @@ fun Int.toTimerDigits(): TimerDigits {
     return TimerDigits(minOneDigit, minTwoDigit, secOneDigit, secTwoDigit)
 
 }
+
 
 val AppJson = Json {
     ignoreUnknownKeys = true

@@ -1,9 +1,11 @@
 package com.zeppelin.app
 
 import android.Manifest.permission
+import android.app.ActivityManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,13 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
-import com.zeppelin.app.screens._common.data.PinningUiEvent
-import com.zeppelin.app.screens._common.data.SessionEventsManager
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
+import com.zeppelin.app.screens._common.data.PinningUiEvent
+import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.ui.ScaffoldViewModel
 import com.zeppelin.app.screens._common.ui.ZeppelinScaffold
 import com.zeppelin.app.screens.auth.domain.AuthManager
@@ -30,13 +33,20 @@ import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
 import com.zeppelin.app.ui.theme.ZeppelinTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
-    private val authManager : AuthManager by inject()
+    private val authManager: AuthManager by inject()
     private val sessionEventsManager: SessionEventsManager by inject()
     private val distractionDetectionManager: DistractionDetectionManager by inject()
+    private val activityManager by lazy {
+        getSystemService(ACTIVITY_SERVICE) as ActivityManager
+    }
+    private var isAppCurrentlyPinned =
+        false // Tracks if the app initiated pinning
+
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +66,7 @@ class MainActivity : ComponentActivity() {
             distractionDetectionManager.requestUsageStatsPermission()
         }
 
-        val keepSplash:MutableStateFlow<Boolean?>  = MutableStateFlow(null)
+        val keepSplash: MutableStateFlow<Boolean?> = MutableStateFlow(null)
 
         installSplashScreen().apply {
             setKeepOnScreenCondition {
@@ -75,23 +85,33 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(Unit) { // Key can be Unit as the flow itself doesn't change
+            LaunchedEffect(Unit) {
                 sessionEventsManager.pinningUiEventFlow.collect { event ->
                     when (event) {
                         is PinningUiEvent.StartPinning -> {
                             try {
                                 startLockTask()
-                                android.util.Log.d("MainActivity", "Called startLockTask() on PinningUiEvent.StartPinning")
+                                isAppCurrentlyPinned = true // App initiated pinning
+                                Log.d(
+                                    "MainActivity",
+                                    "Called startLockTask(), isAppCurrentlyPinned = true"
+                                )
                             } catch (e: Exception) {
-                                android.util.Log.e("MainActivity", "Failed to start lock task on event", e)
+                                Log.e("MainActivity", "Failed to start lock task on event", e)
                             }
                         }
+
                         is PinningUiEvent.StopPinning -> {
                             try {
-                                stopLockTask()
-                                android.util.Log.d("MainActivity", "Called stopLockTask() on PinningUiEvent.StopPinning")
+                                if (activityManager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
+                                    stopLockTask()
+                                    Log.d("MainActivity", "Called stopLockTask()")
+                                } else {
+                                    Log.d( "MainActivity", "Skipped stopLockTask app is not pinned.")
+                                }
+                                isAppCurrentlyPinned = false // App initiated/acknowledged unpinning
                             } catch (e: Exception) {
-                                android.util.Log.e("MainActivity", "Failed to stop lock task on event", e)
+                                Log.e("MainActivity", "Failed to stop lock task on event", e)
                             }
                         }
                     }
@@ -120,6 +140,7 @@ data class SharedTransitionScopes(
     val animatedVisibilityScope: AnimatedVisibilityScope,
     val sharedTransitionScope: SharedTransitionScope
 )
+
 val LocalSharedTransitionScopes =
     compositionLocalOf<SharedTransitionScopes> {
         error("SharedTransitionScopes not provided")

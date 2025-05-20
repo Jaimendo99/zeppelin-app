@@ -191,7 +191,13 @@ class WebSocketClient(
     suspend fun sendEvent(event: WebSocketEvent) {
         session?.let {
             try {
-                it.sendSerialized(event)
+                val jsonEvent = AppJson.encodeToString(
+                    PolymorphicSerializer(WebSocketEvent::class),
+                    event
+                )
+
+                it.send(Frame.Text(jsonEvent))
+
                 Log.d(TAG, "Sent event: $event")
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending event", e)
