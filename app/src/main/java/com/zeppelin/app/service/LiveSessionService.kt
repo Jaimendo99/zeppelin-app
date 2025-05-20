@@ -3,7 +3,6 @@ package com.zeppelin.app.service
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.IBinder
@@ -13,6 +12,8 @@ import com.zeppelin.app.MainActivity
 import com.zeppelin.app.R
 import com.zeppelin.app.screens._common.data.ClientHelloMessage
 import com.zeppelin.app.screens._common.data.CurrentPhase
+import com.zeppelin.app.screens._common.data.LockTaskModeStatus
+import com.zeppelin.app.screens._common.data.LockTaskRemovedEvent
 import com.zeppelin.app.screens._common.data.PomodoroExtendMessage
 import com.zeppelin.app.screens._common.data.PomodoroPhaseEndMessage
 import com.zeppelin.app.screens._common.data.PomodoroSessionEndMessage
@@ -26,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -50,10 +52,11 @@ class LiveSessionService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service onCreate")
-        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         observeWebSocketState()
         observeIncomingEvents()
         observePomodoroState()
+        observeSessionEvents()
     }
 
     override fun onStartCommand(
@@ -150,6 +153,22 @@ class LiveSessionService : Service() {
         }
     }
 
+    fun observeSessionEvents() {
+        serviceScope.launch {
+            eventsManager.lockTaskModeStatus.distinctUntilChanged().collect {
+               when(it) {
+                   LockTaskModeStatus.LOCK_TASK_MODE_PINNED -> { Log.d(TAG, "Screen pinning enabled") }
+                   LockTaskModeStatus.LOCK_TASK_MODE_NONE -> {
+                       webSocketClient.sendEvent(
+                           LockTaskRemovedEvent( removedAt = System.currentTimeMillis() )
+                       )
+                       Log.d(TAG, "Screen pinning disabled") }
+                   LockTaskModeStatus.LOCK_TASK_MODE_LOCKED -> { Log.d(TAG, "Screen pinning locked") }
+               }
+            }
+        }
+    }
+
     private fun observeIncomingEvents() {
         serviceScope.launch {
             webSocketClient.wsEvents.collect { event ->
@@ -170,6 +189,9 @@ class LiveSessionService : Service() {
 
                         is StatusUpdateMessage -> eventsManager.handleStatusUpdate(event) { onStop() }
                         is UnknownEvent -> eventsManager.handleUnknownEvent(event)
+                        else -> {
+                            Log.d(TAG, "Unknown event: $event")
+                        }
                     }
 
                 }
@@ -187,7 +209,7 @@ class LiveSessionService : Service() {
 
         val notiColor = when (phase) {
             CurrentPhase.WORK -> resources.getColor(R.color.primaryContainerDark, null)
-            CurrentPhase.BREAK-> resources.getColor(R.color.secondaryContainerDark, null)
+            CurrentPhase.BREAK -> resources.getColor(R.color.secondaryContainerDark, null)
             else -> resources.getColor(R.color.primaryContainerDark, null)
         }
 

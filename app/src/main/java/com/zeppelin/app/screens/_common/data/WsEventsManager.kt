@@ -1,40 +1,73 @@
 package com.zeppelin.app.screens._common.data
 
+import android.app.ActivityManager
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Clock.System.now
 import kotlin.time.ExperimentalTime
 
 class SessionEventsManager {
+
+    private val context: Context by inject(Context::class.java)
+
+    private val CHECK_INTERVAL_MILLIS = 1000L // Check every second
+
     private val _pomodoroState = MutableStateFlow(PomodoroState.Initial) // Start with initial state
     val pomodoroState: StateFlow<PomodoroState> = _pomodoroState.asStateFlow()
 
-    private val _pinningUiEventFlow = MutableSharedFlow<PinningUiEvent>(replay = 0) // No replay needed for events
+    private val _pinningUiEventFlow =
+        MutableSharedFlow<PinningUiEvent>(replay = 0) // No replay needed for events
     val pinningUiEventFlow: SharedFlow<PinningUiEvent> = _pinningUiEventFlow.asSharedFlow()
 
+    private val _pinningManuallyExitedEventFlow = MutableSharedFlow<Unit>(replay = 0)
+    val pinningManuallyExitedEventFlow: SharedFlow<Unit> =
+        _pinningManuallyExitedEventFlow.asSharedFlow()
+
+
     private var wasPreviouslyInWorkPhase: Boolean = false
-    
     private var timerJob: Job? = null
-
     private val currentRemainingSeconds = AtomicInteger(0)
-
     private val TAG = "WsEventsManager"
+
+
+    val lockTaskModeStatus: Flow<LockTaskModeStatus> = callbackFlow {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        while (isActive) {
+            val currentStatus = getCurrentLockTaskModeStatus(activityManager)
+            trySend(currentStatus)
+            delay(CHECK_INTERVAL_MILLIS)
+        }
+        awaitClose { }
+    }
+
+    private fun getCurrentLockTaskModeStatus(activityManager: ActivityManager): LockTaskModeStatus {
+        return when (activityManager.lockTaskModeState) {
+            ActivityManager.LOCK_TASK_MODE_NONE -> LockTaskModeStatus.LOCK_TASK_MODE_NONE
+            ActivityManager.LOCK_TASK_MODE_LOCKED -> LockTaskModeStatus.LOCK_TASK_MODE_LOCKED
+            ActivityManager.LOCK_TASK_MODE_PINNED -> LockTaskModeStatus.LOCK_TASK_MODE_PINNED
+            else -> LockTaskModeStatus.LOCK_TASK_MODE_NONE // Should not happen
+        }
+    }
 
 
     fun handleStatusUpdate(
@@ -73,13 +106,22 @@ class SessionEventsManager {
         val initialState = PomodoroState(
             isRunning = true,
             currentPhase = CurrentPhase.WORK, // Pomodoro always starts with work
-            remainingSeconds = calculateRemainingSeconds(startMessage.startedAt, config.workDuration),
+            remainingSeconds = calculateRemainingSeconds(
+                startMessage.startedAt,
+                config.workDuration
+            ),
             currentCycle = 1,
             totalCycles = config.cycles,
             workDuration = config.workDuration,
             breakDuration = config.breakDuration,
-            timerDisplay = calculateRemainingSeconds( startMessage.startedAt, config.workDuration ).formatTime(),
-            timerDigits = calculateRemainingSeconds(startMessage.startedAt, config.workDuration).toTimerDigits()
+            timerDisplay = calculateRemainingSeconds(
+                startMessage.startedAt,
+                config.workDuration
+            ).formatTime(),
+            timerDigits = calculateRemainingSeconds(
+                startMessage.startedAt,
+                config.workDuration
+            ).toTimerDigits()
         )
         _pomodoroState.value = initialState
         currentRemainingSeconds.set(initialState.remainingSeconds)
@@ -101,7 +143,7 @@ class SessionEventsManager {
         return (duration - (rightNow() - startedAt)).toInt()
     }
 
-     fun handlePomodoroExtend(extendMessage: PomodoroExtendMessage) {
+    fun handlePomodoroExtend(extendMessage: PomodoroExtendMessage) {
         Log.d(TAG, "Pomodoro extended: $extendMessage")
         if (_pomodoroState.value.isRunning) {
             val newRemaining =
@@ -118,7 +160,7 @@ class SessionEventsManager {
         }
     }
 
-     fun handlePomodoroPhaseEnd(scope: CoroutineScope, phaseEndMessage: PomodoroPhaseEndMessage) {
+    fun handlePomodoroPhaseEnd(scope: CoroutineScope, phaseEndMessage: PomodoroPhaseEndMessage) {
         Log.d(TAG, "Pomodoro phase ended: $phaseEndMessage")
         stopTimer() // Stop the timer for the completed phase
 
@@ -161,7 +203,7 @@ class SessionEventsManager {
         }
     }
 
-     fun handlePomodoroSessionEnd(sessionEndMessage: PomodoroSessionEndMessage) {
+    fun handlePomodoroSessionEnd(sessionEndMessage: PomodoroSessionEndMessage) {
         Log.d(TAG, "Pomodoro session ended: $sessionEndMessage")
         stopTimer()
         _pomodoroState.value = PomodoroState.Initial // Reset state
@@ -170,22 +212,22 @@ class SessionEventsManager {
             // If not, this launch needs to be handled appropriately.
             // For simplicity, let's assume a default scope for this event,
             // but ideally, it should use the same scope as other operations.
-             CoroutineScope(Dispatchers.Default).launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
+            CoroutineScope(Dispatchers.Default).launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
             wasPreviouslyInWorkPhase = false
         }
     }
 
-     fun handleClientHello(clientHello: ClientHelloMessage) {
+    fun handleClientHello(clientHello: ClientHelloMessage) {
         Log.d(TAG, "Client hello: $clientHello")
     }
 
-     fun handleUnknownEvent(unknownEvent: UnknownEvent) {
+    fun handleUnknownEvent(unknownEvent: UnknownEvent) {
         Log.w(TAG, "Unknown event: ${unknownEvent.rawText}")
     }
 
     // --- Timer Control ---
 
-     fun startTimer(scope: CoroutineScope) {
+    fun startTimer(scope: CoroutineScope) {
         Log.d(TAG, "Starting timer...")
         if (timerJob?.isActive == true) {
             Log.w(TAG, "Timer already running.")
@@ -229,7 +271,7 @@ class SessionEventsManager {
         }
     }
 
-     fun stopTimer() {
+    fun stopTimer() {
         timerJob?.cancel()
         timerJob = null
         // This might conflict if a new state is set immediately after stopping
