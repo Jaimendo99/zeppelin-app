@@ -70,7 +70,7 @@ data class ContentItem(
 data class QuizSummary(
     @SerialName("content_id") val contentID: String,
     @SerialName("total_points")val totalPoints: Int,
-    @SerialName("total_grade") val totalGrade: Int,
+    @SerialName("total_grade") val totalGrade: Float,
     @SerialName("last_quiz_time") val lastQuizTime:Long
 )
 

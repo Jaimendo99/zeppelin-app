@@ -8,7 +8,9 @@ import com.zeppelin.app.di.appModule
 import com.zeppelin.app.di.courseDetailModules
 import com.zeppelin.app.di.courseModules
 import com.zeppelin.app.di.courseSessionModules
+import com.zeppelin.app.di.liveSessionModule
 import com.zeppelin.app.di.pushNotificationModule
+import com.zeppelin.app.di.watchLinkModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
@@ -29,7 +31,9 @@ class ZeppelinApp : Application(), KoinComponent {
                 courseModules,
                 courseDetailModules,
                 courseSessionModules,
-                pushNotificationModule
+                pushNotificationModule,
+                liveSessionModule,
+                watchLinkModule
             )
 
             workManagerFactory()

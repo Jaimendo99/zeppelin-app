@@ -83,6 +83,50 @@ data class LockTaskRemovedEvent(
     @SerialName("remove_at") val removedAt: Long,
 ): WebSocketEvent
 
+
+
+@Serializable
+@SerialName("WEARABLE_OFF")
+data class WearableOffEvent(
+    @SerialName("time") val removedAt: Long,
+) : WebSocketEvent
+
+@Serializable
+@SerialName("WEARABLE_ON")
+data class WearableOnEvent(
+    @SerialName("time") val addedAt: Long,
+) : WebSocketEvent
+
+
+
+@Serializable
+@SerialName("WEAK_RSSI")
+data class WeakRssiEvent(
+    @SerialName("rssi") val rssi: Int,
+) : WebSocketEvent
+
+@Serializable
+@SerialName("STRONG_RSSI")
+data class StrongRssiEvent(
+    @SerialName("rssi") val rssi: Int,
+) : WebSocketEvent
+
+
+
+@Serializable
+@SerialName("WEARABLE_DISCONNECTED")
+data class WearableDisconnectedEvent(
+    @SerialName("time") val disconnectedAt: Long,
+) : WebSocketEvent
+
+@Serializable
+@SerialName("WEARABLE_RECONNECTED")
+data class WearableReconnectedEvent(
+    @SerialName("time") val reconnectedAt: Long,
+) : WebSocketEvent
+
+
+
 enum class LockTaskModeStatus(){
     LOCK_TASK_MODE_NONE, //    Constant Value: 0 (0x00000000)
     LOCK_TASK_MODE_LOCKED, //    Constant Value: 1 (0x00000001)

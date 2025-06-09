@@ -7,4 +7,5 @@ sealed class Screens(val route: String, val title: String) {
     data object Profile : Screens("profile", "Profile")
     data object CourseDetail : Screens("courseDetail/{id}", "Course Detail")
     data object CourseSession : Screens("courseSession/{sessionId}", "Course Session")
+    data object WatchLink : Screens("watchLink", "Watch Link")
 }
