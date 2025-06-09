@@ -100,6 +100,12 @@ dependencies {
     //worker
     implementation(libs.androidx.work.runtime.ktx)
 
+    //data layer api
+    implementation(libs.play.services.wearable)
+
+    //Jetpack Compose Permissions
+    implementation(libs.accompanist.permissions)
+
 
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
     implementation("com.google.firebase:firebase-messaging")

@@ -11,6 +11,7 @@ import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.data.ICourseDetailRepo
 import com.zeppelin.app.screens.courseDetail.domain.toCourseDetailUI
 import com.zeppelin.app.screens.nav.Screens
+import com.zeppelin.app.service.wearCommunication.WearCommunicator
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,8 @@ import kotlinx.coroutines.launch
 class CourseDetailsViewModel(
     private val courseDetailRepo: ICourseDetailRepo,
     webSocketClient: WebSocketClient,
-    eventsManager: SessionEventsManager
+    eventsManager: SessionEventsManager,
+    private val wearCommunicator: WearCommunicator
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<String>()
@@ -40,7 +42,9 @@ class CourseDetailsViewModel(
 
     val webSocketState: StateFlow<WebSocketState> = webSocketClient.state
 
-    private val TAG = "CourseDetailViewModel"
+    companion object{
+        private const val TAG = "CourseDetailViewModel"
+    }
 
     init {
         viewModelScope.launch {
@@ -74,7 +78,7 @@ class CourseDetailsViewModel(
             if (courseDetail.isFailure || quizSummary.isFailure || courseDetailResult == null || quizSummaryResult == null) {
                 _error.value = courseDetail.exceptionOrNull()?.message
                     ?: quizSummary.exceptionOrNull()?.message
-                Log.e(TAG, "Error fetching course detail or quiz summary")
+                Log.e(TAG, "Error fetching course detail or quiz summary - ${_error.value}")
                 return@launch
             }
             _courseDetail.value = courseDetailResult.toCourseDetailUI(quizSummaryResult)
@@ -85,6 +89,7 @@ class CourseDetailsViewModel(
 
     fun onDisconnect() {
         viewModelScope.launch {
+            wearCommunicator.sendStopMonitoringCommand()
             courseDetailRepo.disconnectFromSession()
             _events.emit(Screens.Courses.route)
         }
@@ -94,10 +99,12 @@ class CourseDetailsViewModel(
         Log.d(TAG, "onSessionStartClick called with sessionId: $sessionId")
         if (webSocketState.value is WebSocketState.Connected) {
             viewModelScope.launch {
+                wearCommunicator.sendStartMonitoringCommand()
                 _events.emit("courseSession/$sessionId")
             }
         } else {
             Log.w(TAG, "onSessionStartClick called but session not ready or ID is empty.")
         }
     }
+
 }

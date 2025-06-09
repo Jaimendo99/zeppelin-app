@@ -2,15 +2,21 @@ package com.zeppelin.app.screens._common.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zeppelin.app.screens.auth.domain.AuthManager
+import androidx.navigation.NavHostController
+import com.zeppelin.app.screens.nav.Screens
+import com.zeppelin.app.screens.watchLink.data.WatchLinkRepository
 import kotlinx.coroutines.launch
 
 class ScaffoldViewModel(
-    private val authManager: AuthManager
+     watchLinkRepository: WatchLinkRepository
+
 ): ViewModel() {
-    fun onProfileLongPressed() {
+
+    val isWatchLinked = watchLinkRepository.isConnectedToWatch
+
+    fun onParingClicked(navController: NavHostController) {
         viewModelScope.launch {
-            authManager.logout()
+            navController.navigate(Screens.WatchLink.route)
         }
     }
 }

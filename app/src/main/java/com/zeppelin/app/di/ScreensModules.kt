@@ -14,6 +14,10 @@ import com.zeppelin.app.screens.courseSession.ui.CourseSessionViewModel
 import com.zeppelin.app.screens.courses.data.CoursesRepository
 import com.zeppelin.app.screens.courses.data.ICoursesRepository
 import com.zeppelin.app.screens.courses.ui.CourseViewModel
+import com.zeppelin.app.screens.watchLink.data.WatchLinkRepository
+import com.zeppelin.app.screens.watchLink.ui.WatchLinkViewModel
+import com.zeppelin.app.watchLink.data.WatchScanner
+import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -23,7 +27,6 @@ val courseModules = module {
      viewModel { CourseViewModel(get()) }
 }
 
-
 val courseDetailModules = module {
     single<IAuthPreferences> { AuthPreferences(get()) }
     single<WebSocketClient> { WebSocketClient(get()) }
@@ -32,7 +35,7 @@ val courseDetailModules = module {
     single<SessionEventsManager>{ SessionEventsManager()}
 
     single<ICourseDetailRepo> { CourseDetailRepo(context = get(), get()) }
-    viewModel { CourseDetailsViewModel(get(), get(), get()) }
+    viewModel { CourseDetailsViewModel(get(), get(), get(), get()) }
 }
 
 val courseSessionModules = module {
@@ -40,3 +43,8 @@ val courseSessionModules = module {
     viewModel { CourseSessionViewModel(get(), get()) }
 }
 
+val watchLinkModule = module {
+    single { WatchLinkRepository(androidContext()) }
+    factory { WatchScanner(androidContext()) }
+    viewModel { WatchLinkViewModel(get(), get()) }
+}

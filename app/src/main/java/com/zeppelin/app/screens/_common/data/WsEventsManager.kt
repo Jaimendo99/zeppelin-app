@@ -43,6 +43,10 @@ class SessionEventsManager {
     val pinningManuallyExitedEventFlow: SharedFlow<Unit> =
         _pinningManuallyExitedEventFlow.asSharedFlow()
 
+    // track if the wearable is on or off the wrist
+    private val _isOnWrist = MutableStateFlow<Boolean?>(null)
+    val isOnWrist: StateFlow<Boolean?> = _isOnWrist.asStateFlow()
+
 
     private var wasPreviouslyInWorkPhase: Boolean = false
     private var timerJob: Job? = null
@@ -59,6 +63,13 @@ class SessionEventsManager {
         }
         awaitClose { }
     }
+
+    fun updateOnWristStatus(isOnWrist: Boolean) {
+        Log.d(TAG, "Updating on wrist status: $isOnWrist")
+        _isOnWrist.value = isOnWrist
+    }
+
+
 
     private fun getCurrentLockTaskModeStatus(activityManager: ActivityManager): LockTaskModeStatus {
         return when (activityManager.lockTaskModeState) {

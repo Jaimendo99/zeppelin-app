@@ -1,6 +1,6 @@
 package com.zeppelin.app
 
-import android.Manifest.permission
+import android.Manifest
 import android.app.ActivityManager
 import android.content.pm.PackageManager
 import android.os.Build
@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -18,10 +19,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.zeppelin.app.screens._common.data.PinningUiEvent
 import com.zeppelin.app.screens._common.data.SessionEventsManager
@@ -33,7 +32,6 @@ import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
 import com.zeppelin.app.ui.theme.ZeppelinTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
@@ -44,27 +42,22 @@ class MainActivity : ComponentActivity() {
     private val activityManager by lazy {
         getSystemService(ACTIVITY_SERVICE) as ActivityManager
     }
-    private var isAppCurrentlyPinned =
-        false // Tracks if the app initiated pinning
+    private var isAppCurrentlyPinned = false
 
+    private val requestPermissionsLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            permissions.entries.forEach { entry ->
+                Log.i( "PermissionRequest", "Permission: ${entry.key}, Granted: ${entry.value}" )
+                if (!entry.value) {
+                    Log.w( "PermissionRequest", "Permission ${entry.key} was denied." )
+                }
+            }
+        }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState) // Call super.onCreate first
-
-        // Request POST_NOTIFICATIONS permission
-        if (ContextCompat.checkSelfPermission(
-                this,
-                permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this, arrayOf(permission.POST_NOTIFICATIONS), 0)
-        }
-
-        // Check and request Usage Stats permission
-        if (!distractionDetectionManager.hasUsageStatsPermission()) {
-            distractionDetectionManager.requestUsageStatsPermission()
-        }
 
         val keepSplash: MutableStateFlow<Boolean?> = MutableStateFlow(null)
 
@@ -118,6 +111,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // e.g. in MainActivity.onCreate
+
             ZeppelinTheme(dynamicColor = false) {
                 val navController = rememberNavController()
                 ZeppelinScaffold(
@@ -131,8 +126,45 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        if (!distractionDetectionManager.hasUsageStatsPermission()) {
+            distractionDetectionManager.requestUsageStatsPermission()
+        }
+        checkAndRequestPermissions()
+    }
+    private fun checkAndRequestPermissions() {
+        val permissionsToAskFor = mutableListOf<String>()
+
+        // 1. POST_NOTIFICATIONS (Required for Android 13 (API 33) and above)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToAskFor.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // 2. BLUETOOTH_CONNECT (Required for Android 12 (API 31) and above)
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsToAskFor.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+
+        if (permissionsToAskFor.isNotEmpty()) {
+            Log.i( "PermissionRequest", "Requesting permissions: ${permissionsToAskFor.joinToString()}" )
+            requestPermissionsLauncher.launch(permissionsToAskFor.toTypedArray())
+        } else {
+            Log.i( "PermissionRequest", "All necessary runtime permissions already granted." )
+        }
     }
 }
+
+
 
 
 @OptIn(ExperimentalSharedTransitionApi::class)

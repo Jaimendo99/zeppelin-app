@@ -15,5 +15,6 @@ object PreferencesKeys {
     val AUTH_TOKEN = stringPreferencesKey("auth_token")
     val USER_ID = stringPreferencesKey("user_id")
     val FCM_TOKEN = stringPreferencesKey("fcm_token")
+    val SESSION_ID = stringPreferencesKey("session_id")
 }
 

@@ -1,5 +1,6 @@
 package com.zeppelin.app.screens.courses.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeppelin.app.screens.courses.data.CourseCardData
@@ -23,32 +24,26 @@ class CourseViewModel(
     private val _events = MutableSharedFlow<String>()
     val events = _events.asSharedFlow()
 
-    private val _loading = MutableStateFlow(false)
+    private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading
 
     private val _enableClick = MutableStateFlow(true)
     val enableClick: StateFlow<Boolean> = _enableClick
 
     init {
-        viewModelScope.launch {
-            _loading.value = true
-            loadCourses()
-            _loading.value = false
-        }
+        loadCourses()
     }
 
     private fun loadCourses() {
         _loading.value = true
         viewModelScope.launch {
-            val result = repository.getCourses()
-            result
-            .onFailure {
-                _loading.value = false
-            }.onSuccess {
-                _courses.value = it.map { it.toCourseCardData() }
-            }
+            delay(1000)
+            repository.getCourses()
+                .onSuccess {
+                    _courses.value = it.map { it.toCourseCardData() }
+                }
+            _loading.value = false
         }
-        _loading.value = false
     }
 
     private suspend fun onProfileClick() {

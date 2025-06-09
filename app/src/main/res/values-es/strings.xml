@@ -14,4 +14,13 @@
     <string name="breakPhase">"Fase de descanso "</string>
     <string name="session_not_started">Sesión por empezar</string>
     <string name="nosession">No empieza</string>
+    <string name="paired_device">Dispositivo Vinculado: %1$s</string>
+    <string name="unpair">Desvincular</string>
+    <string name="no_device_paired">Ningún dispositivo vinculado.</string>
+    <string name="scan_for_devices">Buscar dispositivos</string>
+    <string name="no_devices_found">No se encontraron dispositivos. Inicie la búsqueda para encontrar dispositivos Bluetooth cercanos.</string>
+    <string name="unknown_device">Dispositivo desconocido</string>
+    <string name="found_devices">Dispositivos encontrados:</string>
+    <string name="bluetooth_permissions_are_required_to_scan_for_devices">Se requieren permisos de Bluetooth para buscar dispositivos.</string>
+    <string name="link_your_watch">Vincular tu reloj</string>
 </resources>

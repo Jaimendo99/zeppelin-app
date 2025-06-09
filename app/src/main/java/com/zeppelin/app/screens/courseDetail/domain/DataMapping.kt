@@ -47,6 +47,18 @@ fun CourseProgressApi.toCourseProgressUI(): CourseProgressUI {
 
 
 fun CourseDetail.toCourseDetailUI(quizSummary: List<QuizSummary>): CourseDetailUI {
+
+    val imageUrls = listOf(
+        "https://images.unsplash.com/photo-1561089489-f13d5e730d72?q=80&w=720&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1633493702341-4d04841df53b?q=80&w=720&auto=format&fit=crop",
+        "https://plus.unsplash.com/premium_photo-1661430659143-ffbb5ce2b6a7?q=80&w=720&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1561323578-dde5e688b4b7?q=80&w=720&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1564866657311-eefb86a2e568?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1504198458649-3128b932f49e?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"
+    )
+
     val quizzes = this.modules.flatMap { module ->
         module.content.filter { content ->
             content.contentTypeId == ContentType.QUIZ.ordinal + 1
@@ -89,7 +101,7 @@ fun CourseDetail.toCourseDetailUI(quizSummary: List<QuizSummary>): CourseDetailU
         subject = lastModule.moduleName,
         description = this.description,
         course = this.title,
-        imageUrl = "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=720&auto=format&fit=crop",
+        imageUrl = imageUrls.random(),
         grades = grades,
         progress = CourseProgressUI(
             contentProgress = "$contentProgress/${content.size}",

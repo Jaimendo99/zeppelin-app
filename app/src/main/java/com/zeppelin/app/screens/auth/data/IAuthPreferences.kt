@@ -7,4 +7,9 @@ interface IAuthPreferences {
     fun getToken(): Flow<String?>
     suspend fun clearToken()
     suspend fun getAuthTokenOnce(): String?
+
+    suspend fun saveUserId(userId: String)
+    suspend fun getUserIdOnce(): String?
+    fun getUserId(): Flow<String?>
+    suspend fun clearUserId()
 }

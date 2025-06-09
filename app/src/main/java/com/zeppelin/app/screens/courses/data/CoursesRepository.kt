@@ -94,12 +94,22 @@ class CoursesRepository(
     }
          */
     private fun Course.toDomain(): CoursesData {
+            val imageUrls = listOf(
+                "https://images.unsplash.com/photo-1561089489-f13d5e730d72?q=80&w=720&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1633493702341-4d04841df53b?q=80&w=720&auto=format&fit=crop",
+                "https://plus.unsplash.com/premium_photo-1661430659143-ffbb5ce2b6a7?q=80&w=720&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1561323578-dde5e688b4b7?q=80&w=720&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1564866657311-eefb86a2e568?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1504198458649-3128b932f49e?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"
+            )
         return CoursesData(
             id = this.id,
             subject = this.modulesSummary.lastModuleName,
             course = this.title,
             progress = this.modulesSummary.lastModuleIndex.toFloat() / this.modulesSummary.moduleSummary,
-            imageUrl = "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=720&auto=format&fit=crop"
+            imageUrl = imageUrls.random()
         )
     }
 }

@@ -33,4 +33,29 @@ class AuthPreferences(private val context: Context) : IAuthPreferences {
             preferences.remove(PreferencesKeys.AUTH_TOKEN)
         }
     }
+
+    override suspend fun saveUserId(userId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USER_ID] = userId
+        }
+    }
+
+    override suspend fun getUserIdOnce(): String? {
+        return context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.USER_ID]
+        }.firstOrNull()
+    }
+
+    override fun getUserId(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.USER_ID]
+        }
+    }
+
+    override suspend fun clearUserId() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PreferencesKeys.USER_ID)
+        }
+    }
+
 }

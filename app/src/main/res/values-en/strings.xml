@@ -14,4 +14,13 @@
     <string name="breakPhase">Break Phase</string>
     <string name="nosession">Not Started</string>
     <string name="session_not_started">Session about to start</string>
+    <string name="paired_device">Paired Device: %1$s</string>
+    <string name="unpair">Unpair</string>
+    <string name="no_device_paired">No device paired.</string>
+    <string name="scan_for_devices">Scan for Devices</string>
+    <string name="bluetooth_permissions_are_required_to_scan_for_devices">Bluetooth permissions are required to scan for devices.</string>
+    <string name="no_devices_found">No devices found. Start scanning to find nearby Bluetooth devices.</string>
+    <string name="unknown_device">Unknown Device</string>
+    <string name="found_devices">Found Devices:</string>
+    <string name="link_your_watch">Link Your Watch</string>
 </resources>
