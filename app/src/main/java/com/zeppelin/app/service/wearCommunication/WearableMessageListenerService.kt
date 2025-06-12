@@ -8,6 +8,7 @@ import com.zeppelin.app.screens._common.data.AnalyticsClient
 import com.zeppelin.app.screens._common.data.ReportData
 import com.zeppelin.app.screens._common.data.ReportType
 import com.zeppelin.app.screens._common.data.SessionEventsManager
+import com.zeppelin.app.screens._common.data.UserHeartRate
 import com.zeppelin.app.screens._common.data.UserPhysicalActivity
 import com.zeppelin.app.screens._common.data.WearableDisconnected
 import com.zeppelin.app.screens._common.data.WearableDisconnectedEvent
@@ -19,6 +20,7 @@ import com.zeppelin.app.screens._common.data.WearableReconnected
 import com.zeppelin.app.screens._common.data.WearableReconnectedEvent
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens.auth.data.AuthPreferences
+import com.zeppelin.app.screens.auth.domain.NetworkResult
 import com.zeppelin.app.screens.watchLink.data.WatchLinkRepository
 import com.zeppelin.app.service.ILiveSessionPref
 import kotlinx.coroutines.CoroutineScope
@@ -40,19 +42,21 @@ class WearableMessageListenerService : WearableListenerService() {
     companion object {
         private const val TAG = "WearMessageListener"
 
+        private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
         // Ensure these paths match what the watch sends
         val PATH_EVENT_OFF_WRIST = WearOsPaths.EventOffWrist.path
         val PATH_EVENT_ON_WRIST = WearOsPaths.EventOnWrist.path
         val PATH_EVENT_MOVEMENT_DETECTED = WearOsPaths.EventMovementDetected.path
-        private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        val PATH_DATA_HEART_RATE_SUMMARY = WearOsPaths.DataHeartRateSummary.path
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         serviceScope.launch {
             val genReportData = ReportData(
-                userId = authPreferences.getUserIdOnce() ?: "",
+                userId = authPreferences.getUserIdOnce() ?: "user_not_found",
                 device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce() ?: "",
+                sessionId = liveSessionPref.getSessionIdOnce() ?: "session_not_found",
                 addedAt = System.currentTimeMillis(),
             )
             when (messageEvent.path) {
@@ -64,7 +68,7 @@ class WearableMessageListenerService : WearableListenerService() {
                     analyticsClient.addReport(
                         genReportData.copy(
                             type = ReportType.WEARABLE_OFF,
-                            data = WearableOff(removedAt = System.currentTimeMillis())
+                            body = WearableOff(removedAt = System.currentTimeMillis())
                         )
                     )
                 }
@@ -77,7 +81,7 @@ class WearableMessageListenerService : WearableListenerService() {
                     analyticsClient.addReport(
                         genReportData.copy(
                             type = ReportType.WEARABLE_ON,
-                            data = WearableOn(addedAt = System.currentTimeMillis())
+                            body = WearableOn(addedAt = System.currentTimeMillis())
                         )
                     )
                 }
@@ -86,17 +90,51 @@ class WearableMessageListenerService : WearableListenerService() {
                     val payload = String(messageEvent.data)
                     Log.i(TAG, "Movement detected event received! Payload: $payload")
                     val speed = payload.toFloatOrNull()
-                    analyticsClient.addReport(
+                    val result = analyticsClient.addReport(
                         genReportData.copy(
                             type = ReportType.USER_PHYSICAL_ACTIVITY,
-                            data = UserPhysicalActivity(
+                            body = UserPhysicalActivity(
                                 detectedAt = System.currentTimeMillis(),
                                 speed = speed ?: 0.0f
                             )
                         )
                     )
+                    when (result) {
+                        is NetworkResult.Success ->{
+                            Log.d(TAG, "Movement detected report added successfully: $result")
+                        }
+                        is NetworkResult.Error -> {
+                            Log.e(TAG, "Failed to add UserPhysicalActivity report: ${result.exception?.message}")
+                        }
+                        else -> {
+                            Log.w(TAG, "Unexpected result type: $result")
+                        }
+                    }
                 }
 
+                PATH_DATA_HEART_RATE_SUMMARY -> {
+                    val payload = String(messageEvent.data)
+                    Log.i(TAG, "Heart rate summary received! Payload: $payload")
+                    val parts = payload.split(",")
+                    if (parts.size == 3) {
+                        val heartRate = parts[0].toIntOrNull() ?: 0
+                        val count = parts[1].toIntOrNull() ?: 0
+                        val mean = parts[2].toFloatOrNull() ?: 0.0f
+                        Log.d( TAG, "Heart Rate Summary - Rate: $heartRate, Count: $count, Mean: $mean" )
+                        analyticsClient.addReport( genReportData.copy(
+                            type = ReportType.USER_HEARTRATE,
+                            body = UserHeartRate(
+                                heartRateChange = UserHeartRate.HeartRateRecord(
+                                    value = heartRate, mean = mean, count = count,
+                                    time = System.currentTimeMillis()
+                                    )
+                                )
+                            )
+                        )
+                    } else {
+                        Log.w(TAG, "Invalid heart rate summary format: $payload")
+                    }
+                }
                 else -> {
                     Log.w(TAG, "Unknown message path: ${messageEvent.path}")
                 }
@@ -127,7 +165,7 @@ class WearableMessageListenerService : WearableListenerService() {
                 analyticsClient.addReport(
                     genReportData.copy(
                         type = ReportType.WEARABLE_DISCONNECTED,
-                        data = WearableDisconnected(disconnectedAt = System.currentTimeMillis())
+                        body = WearableDisconnected(disconnectedAt = System.currentTimeMillis())
                     )
                 )
                 watchLinkRepository.saveIsConnectedToWatch(false)
@@ -137,7 +175,7 @@ class WearableMessageListenerService : WearableListenerService() {
                 analyticsClient.addReport(
                     genReportData.copy(
                         type = ReportType.WEARABLE_CONNECTED,
-                        data = WearableReconnected(reconnectedAt = System.currentTimeMillis())
+                        body = WearableReconnected(reconnectedAt = System.currentTimeMillis())
                     )
                 )
                 webSocketClient.sendEvent(

@@ -11,9 +11,10 @@ data class ReportData(
     val type: ReportType? = null,
     val device: String,
     val addedAt:Long,
-    val data: ReportBody? = null
+    val body: ReportBody? = null
 )
 
+@Serializable
 enum class ReportType() {
     APP_USAGE,
     USER_HEARTRATE,
@@ -28,6 +29,7 @@ enum class ReportType() {
     WEARABLE_DISCONNECTED, WEARABLE_CONNECTED
 }
 
+@Serializable
 sealed interface ReportBody
 
 @Serializable
@@ -39,11 +41,13 @@ data class UnPinScreen(
 @Serializable
 @SerialName("USER_HEARTRATE")
 data class UserHeartRate(
-    @SerialName("heartrate_change") val heartRateChange: List<HeartRateRecord>
+    @SerialName("heartrate_change") val heartRateChange: HeartRateRecord
 ) : ReportBody {
     @Serializable
     data class HeartRateRecord(
         val value: Int, // Heart rate value
+        val mean: Float, // Mean heart rate value
+        val count: Int, // Count of heart rate samples
         val time: Long // Timestamp in milliseconds
     )
 }
@@ -77,7 +81,7 @@ data class WeakRssi(
 ) : ReportBody
 
 @Serializable
-@SerialName("WEAK_RSSI")
+@SerialName("STRONG_RSSI")
 data class StrongRssi(
     @SerialName("rssi") val rssi: Int // RSSI value in dBm
 ) : ReportBody
