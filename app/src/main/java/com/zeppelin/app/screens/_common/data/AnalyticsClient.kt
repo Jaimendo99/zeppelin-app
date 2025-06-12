@@ -10,6 +10,7 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
@@ -17,8 +18,12 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.logging.SIMPLE
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.URLProtocol
+import io.ktor.http.contentType
 import io.ktor.http.path
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 
 class AnalyticsClient(
     private val authPreferences: AuthPreferences
@@ -36,6 +41,10 @@ class AnalyticsClient(
                 logger = Logger.SIMPLE
                 level = LogLevel.ALL
             }
+
+            install(ContentNegotiation){
+                json(Json { ignoreUnknownKeys = true })
+            }
             install(Auth) {
                 bearer {
                     loadTokens {
@@ -50,16 +59,17 @@ class AnalyticsClient(
 
 
     suspend fun addReport(report: ReportData): NetworkResult<String, String> {
-        if (report.type == null || report.data == null){
+        Log.d(TAG, "addReport: $report")
+        if (report.type == null || report.body == null){
             return NetworkResult.Error("Report type or data is null")
         }
-        return safeApiCall { client.post {
+        return safeApiCall {
+            client.post {
                 url { path("add/report") }
                 setBody(report)
+                contentType(ContentType.Application.Json )
             }
         }
     }
-
-
 }
 

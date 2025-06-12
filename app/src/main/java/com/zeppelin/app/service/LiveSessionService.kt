@@ -156,7 +156,7 @@ class LiveSessionService : Service() {
                 sessionId = liveSessionPref.getSessionIdOnce() ?: "",
                 addedAt = System.currentTimeMillis(),
                 type = ReportType.APP_USAGE,
-                data = AppUsageReport(report.map { it.toAppUsageRecord() })
+                body = AppUsageReport(report.map { it.toAppUsageRecord() })
             ))
         }
     }
@@ -234,7 +234,7 @@ class LiveSessionService : Service() {
                         analyticsClient.addReport(
                             genReportData.copy(
                                 type = ReportType.UNPIN_SCREEN,
-                                data = UnPinScreen(removedAt = System.currentTimeMillis())
+                                body = UnPinScreen(removedAt = System.currentTimeMillis())
                             )
                         )
                         Log.d(TAG, "Screen pinning disabled")
@@ -296,7 +296,7 @@ class LiveSessionService : Service() {
                         analyticsClient.addReport(
                             genReportData.copy(
                                 type = ReportType.WEAK_RSSI,
-                                data = WeakRssi(rssi = rssiValue)
+                                body = WeakRssi(rssi = rssiValue)
                             )
                         )
                     } else {
@@ -305,7 +305,7 @@ class LiveSessionService : Service() {
                         analyticsClient.addReport(
                             genReportData.copy(
                                 type = ReportType.STRONG_RSSI,
-                                data = StrongRssi(rssi = rssiValue)
+                                body = StrongRssi(rssi = rssiValue)
                             )
                         )
                     }
