@@ -31,6 +31,7 @@ data class Platforms(
 data class PomodoroStartMessage(
     val config: PomodoroConfig,
     val startedAt: Long,
+    val sessionId: String,
     val senderId: String
 ) : WebSocketEvent
 

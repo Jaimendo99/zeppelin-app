@@ -37,3 +37,18 @@ data class ModuleSummary(
     @SerialName("last_module_name") val lastModuleName: String
 )
 
+
+@Serializable
+data class CourseWithProgress(
+    @SerialName("course_id") val courseId : Int,
+    @SerialName("start_date") val startDate: String,
+    @SerialName("qr_code") val qrCode: String,
+    @SerialName("last_module") val lastModule: String,
+    @SerialName("module_count") val moduleCount: Int,
+    @SerialName("video_count") val videoCount: Int,
+    @SerialName("text_count") val textCount: Int,
+    @SerialName("quiz_count") val quizCount: Int,
+    @SerialName("completion_percentage") val percentage: Float,
+    val description: String,
+    val title: String,
+)

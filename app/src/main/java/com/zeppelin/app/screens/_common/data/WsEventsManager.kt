@@ -96,10 +96,6 @@ class SessionEventsManager {
             Log.w(TAG, "Web client disconnected, potentially ending session.")
             _pomodoroState.value = PomodoroState.Initial // Reset state
             if (wasPreviouslyInWorkPhase) {
-                // Assuming handleStatusUpdate is called from a context with a CoroutineScope.
-                // If not, this launch needs a scope. For now, using a local scope.
-                // Ideally, the scope passed to handlePomodoroStart/PhaseEnd could be stored and reused,
-                // or SessionEventsManager itself could have its own lifecycle-aware scope.
                 CoroutineScope(Dispatchers.Default).launch { _pinningUiEventFlow.emit(PinningUiEvent.StopPinning) }
                 wasPreviouslyInWorkPhase = false
             }

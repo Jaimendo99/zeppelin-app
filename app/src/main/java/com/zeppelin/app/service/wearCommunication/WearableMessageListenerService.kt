@@ -53,10 +53,15 @@ class WearableMessageListenerService : WearableListenerService() {
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         serviceScope.launch {
+            val sessionId = liveSessionPref.getSessionIdOnce()
+            if (sessionId.isNullOrEmpty()) {
+                Log.w(TAG, "Session ID is null or empty, ignoring message: ${messageEvent.path}")
+                return@launch
+            }
             val genReportData = ReportData(
                 userId = authPreferences.getUserIdOnce() ?: "user_not_found",
                 device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce() ?: "session_not_found",
+                sessionId = sessionId,
                 addedAt = System.currentTimeMillis(),
             )
             when (messageEvent.path) {

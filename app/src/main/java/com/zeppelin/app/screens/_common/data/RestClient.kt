@@ -15,24 +15,30 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.logging.SIMPLE
 import io.ktor.http.URLProtocol
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class ApiClient(
+class RestClient(
     private val authPreferences: AuthPreferences
 ) {
-    val TAG = "ApiClient"
+    companion object{
+        private const val TAG = "RestClient"
+    }
     internal val client =
         HttpClient(CIO) {
             defaultRequest {
                 url {
                     protocol = URLProtocol.HTTPS
-                    host = "dev.api.focused.uno"
+                    host = "rest.focused.uno"
                 }
             }
-            install(ContentNegotiation) { json(Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            }) }
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                })
+            }
             install(Logging) {
                 logger = Logger.SIMPLE
                 level = LogLevel.ALL
@@ -48,4 +54,13 @@ class ApiClient(
                 }
             }
         }
+
+    @Serializable
+    data class ErrorResponse(
+        val code : String,
+        val details: String? = null,
+        val hint : String? = null,
+        val message: String? = null
+    )
 }
+
