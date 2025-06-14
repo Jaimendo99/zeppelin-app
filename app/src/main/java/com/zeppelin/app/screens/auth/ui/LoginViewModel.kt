@@ -42,6 +42,7 @@ class LoginViewModel(
             Log.d("LoginViewModel", "onLoginClick: ${_loginState.value}")
             if (_loginState.value is NetworkResult.Success) {
                 authManager.saveToken((_loginState.value as NetworkResult.Success).data.jwt)
+                authManager.saveUserId((_loginState.value as NetworkResult.Success).data.jwt)
                 onLoginSuccess()
             }
         }

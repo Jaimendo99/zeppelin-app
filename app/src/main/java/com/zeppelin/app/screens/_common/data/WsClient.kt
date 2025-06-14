@@ -39,7 +39,7 @@ class WebSocketClient(
     private val TAG = "WebSocketClient"
     private var session: DefaultClientWebSocketSession? = null
 
-    private val host = "20.api.focused.uno"
+    private val host = "dev.api.focused.uno"
     private val path = "/ws"
     private val platform = "mobile"
 

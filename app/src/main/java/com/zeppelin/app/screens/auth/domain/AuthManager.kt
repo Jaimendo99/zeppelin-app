@@ -1,5 +1,6 @@
 package com.zeppelin.app.screens.auth.domain
 
+import android.util.Base64
 import android.util.Log
 import com.zeppelin.app.screens.auth.data.AuthPreferences
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +17,7 @@ class AuthManager(private val authPreferences: AuthPreferences) {
         try {
             val parts = token.split(".")
             if (parts.size != 3) return true
-            val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+            val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
             val jsonObject = org.json.JSONObject(payload)
             if (jsonObject.has("exp")) {
                 val expiration = jsonObject.getLong("exp")
@@ -33,6 +34,20 @@ class AuthManager(private val authPreferences: AuthPreferences) {
         authPreferences.saveToken(token)
     }
 
+    suspend fun saveUserId(jwt: String) {
+        Log.d("AuthManager", "saveUserId: $jwt")
+        val parts = jwt.split(".")
+        if (parts.size == 3) {
+            val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+            val jsonObject = org.json.JSONObject(payload)
+            if (jsonObject.has("sub")) {
+                val userId = jsonObject.getString("sub")
+                Log.d("AuthManager", "saveUserId: $userId")
+                authPreferences.saveUserId(userId)
+            }
+        }
+    }
+
     suspend fun logout() {
         authPreferences.clearToken()
     }
@@ -40,8 +55,9 @@ class AuthManager(private val authPreferences: AuthPreferences) {
     // Observe authentication state as a Flow
     fun observeAuthState(): Flow<Boolean> {
         val state = authPreferences.getToken().map { token ->
+            val userId = authPreferences.getUserIdOnce()
             Log.d("AuthManager", "observeAuthState: $token, ${!isTokenExpired(token?:"")}")
-            token != null && !isTokenExpired(token)
+            token != null && !isTokenExpired(token) && !userId.isNullOrEmpty()
         }
         return state
     }

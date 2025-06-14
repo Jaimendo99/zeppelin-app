@@ -272,7 +272,6 @@ class LiveSessionService : Service() {
                             Log.d(TAG, "Unknown event: $event")
                         }
                     }
-
                 }
             }
         }

@@ -6,6 +6,7 @@ import com.google.android.gms.wearable.NodeClient
 import com.google.android.gms.wearable.Wearable
 import com.zeppelin.app.screens._common.data.AnalyticsClient
 import com.zeppelin.app.screens._common.data.ApiClient
+import com.zeppelin.app.screens._common.data.RestClient
 import com.zeppelin.app.screens._common.ui.ScaffoldViewModel
 import com.zeppelin.app.service.ILiveSessionPref
 import com.zeppelin.app.service.LiveSessionPref
@@ -25,6 +26,7 @@ val appModule = module {
     single { AnalyticsClient(get()) }
     single<ILiveSessionPref> { LiveSessionPref(get()) }
     single { DistractionDetectionManager(get()) }
+    single { RestClient(get()) }
 }
 
 val pushNotificationModule = module {
