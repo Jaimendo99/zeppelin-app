@@ -9,13 +9,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -24,26 +20,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.zeppelin.app.LocalSharedTransitionScopes
-import com.zeppelin.app.screens._common.data.PomodoroState
 import com.zeppelin.app.screens._common.data.WebSocketState
-import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
-import com.zeppelin.app.screens.courseDetail.data.CourseProgressUI
-import com.zeppelin.app.screens.courseDetail.data.GradeUI
+import com.zeppelin.app.screens.courseDetail.data.CourseDetailModulesUIState
+import com.zeppelin.app.screens.courseDetail.data.ModuleListUI
+import com.zeppelin.app.screens.courseDetail.data.QuizGradesUi
+import com.zeppelin.app.screens.courseDetail.data.QuizGradesUiState
 import com.zeppelin.app.screens.courseDetail.domain.calculateInitialRadius
 import com.zeppelin.app.screens.courseDetail.domain.calculateMaxRadius
-import com.zeppelin.app.ui.theme.ZeppelinTheme
 
 
 @Composable
@@ -53,9 +45,9 @@ fun CourseDetailScreen(
     courseViewModel: CourseDetailsViewModel,
     navController: NavController,
 ) {
-    val courseDetail = courseViewModel.courseDetail.collectAsState().value
-    val loading = courseViewModel.isLoading.collectAsState().value
-    val sessionState = courseViewModel.webSocketState.collectAsState().value
+    val courseDetailUI by courseViewModel.courseInfo.collectAsState()
+    val quizGradesUiState by courseViewModel.quizGrades.collectAsState()
+    val sessionState by courseViewModel.webSocketState.collectAsState()
 
     LaunchedEffect(Unit) {
         courseViewModel.events.collect { event ->
@@ -64,39 +56,22 @@ fun CourseDetailScreen(
         }
     }
     LaunchedEffect(key1 = "connection/$id") { courseViewModel.startSession(id.toInt(), false) }
-    LaunchedEffect(key1 = "data/$id") { courseViewModel.getCourseDetail(id.toInt()) }
+    LaunchedEffect(key1 = "data/$id") { courseViewModel.loadCourseDetails(id.toInt()) }
 
-    AnimatedContent(
-        targetState = loading,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "CourseDetailLoading"
-    ) { isLoading ->
-        val currentScopes = LocalSharedTransitionScopes.current
-        CompositionLocalProvider(LocalSharedTransitionScopes provides currentScopes) {
-            if (!isLoading) {
-                if (courseDetail != null) {
-                    CourseScreenLayout(
-                        modifier = modifier,
-                        courseDetailUI = courseDetail,
-                        onSessionStartNavigation = { courseViewModel.onSessionStartClick(id.toInt()) },
-                        isLoading = false,
-                        sessionState = sessionState,
-                        onRetryConnection = { courseViewModel.startSession(id.toInt(), true) }
-                    )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Error loading course detail")
-                    }
-                }
-            } else {
-                CourseScreenLayout(
-                    modifier = modifier,
-                    isLoading = true,
-                    courseDetailUI = CourseDetailUI(), // Example empty data
-                    sessionState = WebSocketState.Idle,
-                )
-            }
-        }
+
+    val currentScopes = LocalSharedTransitionScopes.current
+    CompositionLocalProvider(LocalSharedTransitionScopes provides currentScopes) {
+        CourseScreenLayout(
+            modifier = modifier,
+            courseDetailUI = courseDetailUI,
+            onSessionStartNavigation = { courseViewModel.onSessionStartClick(id.toInt()) },
+            sessionState = sessionState,
+            onRetryConnection = { courseViewModel.startSession(id.toInt(), true) },
+            quizGradesUiState = quizGradesUiState,
+            onShowGradeDetail = { courseViewModel.onShowGradeDetail(it) },
+            onDismissDialog = { courseViewModel.onDismissDialog() },
+            onShowAccordion = { courseViewModel.onToggleAccordion(it.moduleIndex, it.moduleName) }
+        )
     }
 }
 
@@ -105,10 +80,13 @@ fun CourseDetailScreen(
 @Composable
 fun CourseScreenLayout(
     modifier: Modifier = Modifier,
-    courseDetailUI: CourseDetailUI = CourseDetailUI(),
+    courseDetailUI: CourseDetailModulesUIState = CourseDetailModulesUIState(),
+    quizGradesUiState: QuizGradesUiState,
     onSessionStartNavigation: () -> Unit = {},
-    isLoading: Boolean = false,
     sessionState: WebSocketState,
+    onShowGradeDetail: (QuizGradesUi) -> Unit = {},
+    onDismissDialog: () -> Unit = {},
+    onShowAccordion: (ModuleListUI) -> Unit,
     onRetryConnection: () -> Unit = {},
 ) {
     val transScope = LocalSharedTransitionScopes.current
@@ -147,7 +125,10 @@ fun CourseScreenLayout(
     val showOverlay = isAnimating || animationProgress > 0f
 
     val startAnimationLambda =
-        remember(sessionState is WebSocketState.Connecting, sessionState is WebSocketState.Connected) {
+        remember(
+            sessionState is WebSocketState.Connecting,
+            sessionState is WebSocketState.Connected
+        ) {
             {
                 if (!(sessionState is WebSocketState.Connecting) && sessionState is WebSocketState.Connected) {
                     isAnimating = true
@@ -172,15 +153,24 @@ fun CourseScreenLayout(
                 layoutSize = layoutCoordinates.size
             }
     ) {
-        CourseContent(
-            courseDetailUI = courseDetailUI,
-            isLoading = isLoading,
-            sessionState = sessionState,
-            onRetryConnection = onRetryConnection,
-            onLongPressStartAnimation = startAnimationLambda,
-            onButtonPositioned = buttonPositionedLambda,
-            sharedScopes = transScope,
-        )
+        AnimatedContent(courseDetailUI.isLoading,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+        ) { isLoading ->
+
+            CourseContent(
+                courseDetailUI = courseDetailUI.courseDetailModulesUI,
+                isLoading = isLoading,
+                sessionState = sessionState,
+                onRetryConnection = onRetryConnection,
+                onLongPressStartAnimation = startAnimationLambda,
+                onButtonPositioned = buttonPositionedLambda,
+                sharedScopes = transScope,
+                onShowGradeDetail = onShowGradeDetail,
+                onDismissDialog = onDismissDialog,
+                quizState = quizGradesUiState,
+                onShowAccordion = onShowAccordion
+            )
+        }
 
         ExpandingCircleOverlay(
             isVisible = showOverlay,
@@ -191,64 +181,4 @@ fun CourseScreenLayout(
     }
 }
 
-
-
-
-
-@Composable
-@Preview
-fun CourseDetailScreenPreview() {
-    ZeppelinTheme {
-        val date = "12/12/2021"
-        CourseScreenLayout(
-            sessionState = WebSocketState.Connected(9),
-            isLoading = false,
-            courseDetailUI = CourseDetailUI(
-                id = 1,
-                subject = "Matemáticas",
-                course = "Matrices #1",
-                description = "Este curso es sobre el tema 2 del libro donde se habla de las matrices y como hacer opraciones aritmetricas",
-                imageUrl = "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=720&auto=format&fit=crop",
-                grades = listOf(
-                    GradeUI(
-                        id = "1",
-                        gradeName = "Tarea 1",
-                        grade = "10",
-                        dateGraded = date
-                    ),
-                    GradeUI(
-                        id = "6",
-                        gradeName = "Tarea 6",
-                        grade = "5",
-                        dateGraded = date
-                    ),
-                    GradeUI(
-                        id = "7",
-                        gradeName = "Tarea 7",
-                        grade = "4",
-                        dateGraded = date
-                    ),
-                    GradeUI(
-                        id = "8",
-                        gradeName = "Tarea 8",
-                        grade = "3",
-                        dateGraded = date
-                    ),
-                    GradeUI(
-                        id = "9",
-                        gradeName = "Tarea 9",
-                        grade = "2",
-                        dateGraded = date
-                    )
-                ),
-                progress = CourseProgressUI(
-                    contentProgress = "10/10",
-                    contentPercentage = 1f,
-                    testProgress = "5/10",
-                    testPercentage = 0.5f
-                )
-            ),
-        )
-    }
-}
 
