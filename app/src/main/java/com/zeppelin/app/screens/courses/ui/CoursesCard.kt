@@ -1,5 +1,6 @@
 package com.zeppelin.app.screens.courses.ui
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.ElevatedCard
@@ -20,16 +22,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.integerResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +47,7 @@ import com.zeppelin.app.screens._common.ui.LoadingText
 import com.zeppelin.app.screens.courses.data.CourseCardData
 import com.zeppelin.app.screens.courses.data.CourseCardWithProgress
 import com.zeppelin.app.ui.theme.ZeppelinTheme
+import com.zeppelin.app.ui.theme.bodyFontFamily
 
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -264,12 +271,12 @@ fun CourseStatItem(
     count: Int,
     type: String,
 ) {
-    val trailingIcon = when (type) {
-        "modules" -> painterResource(R.drawable.rounded_stacks_24)
-        "videos" -> painterResource(R.drawable.rounded_play_circle_24)
-        "quizzes" -> painterResource(R.drawable.baseline_quiz_24)
-        "texts" -> painterResource(R.drawable.rounded_docs_24)
-        else -> painterResource(R.drawable.ic_fg_dark)
+    val ( trailingIcon , tint ) = when (type) {
+        "modules" -> painterResource(R.drawable.rounded_stacks_24) to MaterialTheme.colorScheme.primaryContainer
+        "videos" -> painterResource(R.drawable.rounded_play_circle_24) to MaterialTheme.colorScheme.secondary
+        "quizzes" -> painterResource(R.drawable.baseline_quiz_24) to MaterialTheme.colorScheme.secondary
+        "texts" -> painterResource(R.drawable.rounded_docs_24) to MaterialTheme.colorScheme.secondary
+        else -> painterResource(R.drawable.ic_fg_dark) to MaterialTheme.colorScheme.secondaryContainer
     }
 
     Row {
@@ -278,13 +285,14 @@ fun CourseStatItem(
             contentDescription = null,
             modifier = Modifier
                 .height(16.dp)
-                .align(Alignment.CenterVertically),
-            tint = MaterialTheme.colorScheme.secondaryContainer
+                .align(Alignment.CenterVertically)
+            ,
+            tint = tint
         )
         Spacer(modifier = Modifier.padding(2.dp))
         Text(
             text = "$count",
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Light),
             modifier = modifier
                 .align(Alignment.CenterVertically)
         )
@@ -314,7 +322,7 @@ fun CourseProgressBar(
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-@Preview
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 fun CourseCardPreview1() {
     ZeppelinTheme {
         SharedTransitionLayout {

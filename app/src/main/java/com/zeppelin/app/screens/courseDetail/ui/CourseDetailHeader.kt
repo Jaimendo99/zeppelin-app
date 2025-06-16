@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zeppelin.app.LocalSharedTransitionScopes
 import com.zeppelin.app.screens._common.ui.LoadingText
+import com.zeppelin.app.screens._common.ui.TextWithLoader
+import com.zeppelin.app.screens.courseDetail.data.CourseDetailModulesUI
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 
 
@@ -45,8 +47,7 @@ fun CourseDetailHeader(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!isLoading)
-                        Text(
+                        TextWithLoader(
                             modifier = Modifier
                                 .sharedElement(
                                     state = rememberSharedContentState("course/$id/$course"),
@@ -54,25 +55,19 @@ fun CourseDetailHeader(
                                 )
                                 .weight(1f),
                             text = course,
-                            style = MaterialTheme.typography.displaySmall
+                            style = MaterialTheme.typography.displaySmall,
+                            size = 20,
+                            isLoading = isLoading,
                         )
-                    else Box(modifier = Modifier.weight(1f)) {
-                        LoadingText(
-                            length = 20,
-                            textStyle = MaterialTheme.typography.displaySmall
-                        )
-                    }
 
-                    if (!isLoading) Text(
+                    TextWithLoader(
                         modifier = Modifier.sharedElement(
                             state = rememberSharedContentState("subject/$id/$subject"),
                             animatedVisibilityScope = transScope.animatedVisibilityScope
                         ),
-                        text = subject, style = MaterialTheme.typography.bodyMedium
-                    )
-                    else LoadingText(
-                        length = 10,
-                        textStyle = MaterialTheme.typography.bodyMedium
+                        text = subject, style = MaterialTheme.typography.bodyMedium,
+                        size = 10,
+                        isLoading = isLoading,
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -91,10 +86,10 @@ fun CourseDetailHeader(
 fun CourseDetailHeaderImage(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
-    courseDetailUI: CourseDetailUI = CourseDetailUI(),
+    courseDetailUI: CourseDetailModulesUI = CourseDetailModulesUI()
 ) {
     AsyncImage(
-        model = courseDetailUI.imageUrl,
+        model = "https://images.unsplash.com/photo-1561089489-f13d5e730d72?q=50&w=720&auto=format&fit=crop&course_id=${courseDetailUI.id}",
         contentDescription = null,
         modifier = modifier
             .fillMaxWidth()
@@ -115,9 +110,9 @@ fun CourseDetailHeaderImage(
             end = 16.dp,
             bottom = 40.dp
         ),
-        course = courseDetailUI.course,
+        course = courseDetailUI.title,
         description = courseDetailUI.description,
-        subject = courseDetailUI.subject,
+        subject = courseDetailUI.startDate,
         id = courseDetailUI.id,
         isLoading = isLoading
     )

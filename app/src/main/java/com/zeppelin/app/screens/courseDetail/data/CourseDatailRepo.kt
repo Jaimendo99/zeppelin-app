@@ -1,34 +1,59 @@
 package com.zeppelin.app.screens.courseDetail.data
 
+import android.content.Context
 import android.content.Intent
 import com.zeppelin.app.screens._common.data.ApiClient
+import com.zeppelin.app.screens._common.data.RestClient
 import com.zeppelin.app.screens._common.data.WebSocketState
+import com.zeppelin.app.screens.auth.data.AuthPreferences
 import com.zeppelin.app.screens.auth.data.ErrorResponse
 import com.zeppelin.app.screens.auth.domain.NetworkResult
+import com.zeppelin.app.screens.auth.domain.NetworkResult.Error
+import com.zeppelin.app.screens.auth.domain.NetworkResult.Idle
+import com.zeppelin.app.screens.auth.domain.NetworkResult.Loading
+import com.zeppelin.app.screens.auth.domain.NetworkResult.Success
 import com.zeppelin.app.screens.auth.domain.safeApiCall
 import com.zeppelin.app.service.LiveSessionService
 import io.ktor.client.request.get
 import io.ktor.http.path
 
 class CourseDetailRepo(
-    private val context: android.content.Context,
+    private val context: Context,
     private val apiClient: ApiClient,
+    private val restClient: RestClient,
+    private val authPreferences: AuthPreferences
 ) : ICourseDetailRepo {
     override suspend fun getCourseDetail(id: Int): Result<CourseDetail> {
         val result = apiClient.getCourseDetail(id)
         return when (result) {
-            is NetworkResult.Success<CourseDetail> -> { Result.success(result.data) }
-            is NetworkResult.Error<*> -> { Result.failure(Exception(result.errorMessage)) }
-            else -> { Result.failure(Exception("Unknown error")) }
+            is Success<CourseDetail> -> {
+                Result.success(result.data)
+            }
+
+            is Error<*> -> {
+                Result.failure(Exception(result.errorMessage))
+            }
+
+            else -> {
+                Result.failure(Exception("Unknown error"))
+            }
         }
     }
 
     override suspend fun getQuizAnswers(): Result<List<QuizSummary>> {
         val result = apiClient.getQuizAnswers()
         return when (result) {
-            is NetworkResult.Success<List<QuizSummary>> -> { Result.success(result.data) }
-            is NetworkResult.Error<*> -> { Result.failure(Exception(result.errorMessage)) }
-            else -> { Result.failure(Exception("Unknown error")) }
+            is Success<List<QuizSummary>> -> {
+                Result.success(result.data)
+            }
+
+            is Error<*> -> {
+                Result.failure(Exception(result.errorMessage))
+            }
+
+            else -> {
+                Result.failure(Exception("Unknown error"))
+            }
         }
     }
 
@@ -51,6 +76,37 @@ class CourseDetailRepo(
         return Result.success(WebSocketState.Connected(courseId))
     }
 
+    override suspend fun getCourseInfo(courseId: Int): NetworkResult<CourseDetailWithModules, RestClient.ErrorResponse> {
+        val userId = authPreferences.getUserIdOnce() ?: return Error(
+            errorBody = RestClient.ErrorResponse(
+                code = "NoUserId",
+                message = "User ID not found in preferences"
+            )
+        )
+        return when (val result = restClient.getCourseInfo(courseId, userId)) {
+            is Success<List<CourseDetailWithModules>> -> {
+                val course = result.data.firstOrNull() ?: return Error(
+                    errorBody = RestClient.ErrorResponse(code = "CourseNotFound",
+                        message = "Course with ID $courseId not found"
+                    )
+                )
+                Success(course)
+            }
+
+            is Loading, is Idle, is Error -> result
+        }
+    }
+
+    override suspend fun getQuizAttempts(courseId: Int): NetworkResult< List<QuizAnswer>, RestClient.ErrorResponse> {
+        val userId = authPreferences.getUserIdOnce() ?: return Error(
+            errorBody = RestClient.ErrorResponse(
+                code = "NoUserId",
+                message = "User ID not found in preferences"
+            )
+        )
+        return  restClient.getQuizAttempts(courseId, userId)
+    }
+
     override fun disconnectFromSession() {
         Intent(
             context,
@@ -63,12 +119,44 @@ class CourseDetailRepo(
     }
 }
 
+suspend fun RestClient.getCourseInfo(
+    courseId: Int,
+    userId: String
+): NetworkResult<List<CourseDetailWithModules>, RestClient.ErrorResponse> {
+    return safeApiCall {
+        client.get {
+            url {
+                path("vw_course_details")
+                parameters.append("course_id", "eq.$courseId")
+                parameters.append("user_id", "eq.$userId")
+            }
+        }
+    }
+}
+
+suspend fun RestClient.getQuizAttempts(
+    courseId: Int,
+    userId: String
+): NetworkResult<List<QuizAnswer>, RestClient.ErrorResponse>{
+    return safeApiCall {
+        client.get {
+            url {
+                path("quiz_attempts_view")
+                parameters.append("course_id", "eq.$courseId")
+                parameters.append("user_id", "eq.$userId")
+            }
+        }
+    }
+}
+
 suspend fun ApiClient.getCourseDetail(id: Int): NetworkResult<CourseDetail, ErrorResponse> {
     return safeApiCall { client.get { url { path("course", "$id") } } }
 }
+
 suspend fun ApiClient.getQuizAnswers(): NetworkResult<List<QuizSummary>, ErrorResponse> {
     return safeApiCall { client.get { url { path("quiz", "answers") } } }
 }
+
 
 val imageUrls = listOf(
     "https://images.unsplash.com/photo-1561089489-f13d5e730d72?q=80&w=720&auto=format&fit=crop",
@@ -87,7 +175,7 @@ val courseDetailList = listOf(
         subject = "Matemáticas",
         course = "Algebra",
         description = "asdasd",
-        imageUrl ="" ,
+        imageUrl = "",
         grades = listOf(
             GradeApi(
                 id = "1-1",

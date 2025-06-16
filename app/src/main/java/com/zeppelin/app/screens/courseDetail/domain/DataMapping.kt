@@ -1,14 +1,19 @@
 package com.zeppelin.app.screens.courseDetail.domain
 
-import com.zeppelin.app.screens.courseDetail.data.ContentType
+import android.util.Log
 import com.zeppelin.app.screens.courseDetail.data.CourseDetail
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailApi
+import com.zeppelin.app.screens.courseDetail.data.CourseDetailModulesUI
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
+import com.zeppelin.app.screens.courseDetail.data.CourseDetailWithModules
 import com.zeppelin.app.screens.courseDetail.data.CourseProgressApi
 import com.zeppelin.app.screens.courseDetail.data.CourseProgressUI
 import com.zeppelin.app.screens.courseDetail.data.GradeApi
 import com.zeppelin.app.screens.courseDetail.data.GradeUI
 import com.zeppelin.app.screens.courseDetail.data.Module
+import com.zeppelin.app.screens.courseDetail.data.ModuleListUI
+import com.zeppelin.app.screens.courseDetail.data.QuizAnswer
+import com.zeppelin.app.screens.courseDetail.data.QuizGradesUi
 import com.zeppelin.app.screens.courseDetail.data.QuizSummary
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,7 +66,7 @@ fun CourseDetail.toCourseDetailUI(quizSummary: List<QuizSummary>): CourseDetailU
 
     val quizzes = this.modules.flatMap { module ->
         module.content.filter { content ->
-            content.contentTypeId == ContentType.QUIZ.ordinal + 1
+            content.contentTypeId == CourseDetailWithModules.ContentType.QUIZ.ordinal + 1
         }
     }
 
@@ -71,7 +76,7 @@ fun CourseDetail.toCourseDetailUI(quizSummary: List<QuizSummary>): CourseDetailU
 
     val content = this.modules.flatMap { module ->
         module.content.filter { content ->
-            content.contentTypeId != ContentType.QUIZ.ordinal + 1
+            content.contentTypeId != CourseDetailWithModules.ContentType.QUIZ.ordinal + 1
         }
     }
 
@@ -113,6 +118,109 @@ fun CourseDetail.toCourseDetailUI(quizSummary: List<QuizSummary>): CourseDetailU
     )
 }
 
+fun QuizAnswer.toUI(): QuizGradesUi {
+    return QuizGradesUi(
+        contentId = contentId,
+        startTime = formatStartDate(startTime),
+        endTime = formatStartDate(endTime),
+        title = quizTitle,
+        grade = "$grade/$totalPoints",
+        finalGrade = !needsReview || reviewedAt != null,
+        reviewedAt = formatStartDate(reviewedAt?: startTime),
+        description = quizDescription
+    )
+}
+
+fun CourseDetailWithModules.ModuleWithContents.toUI(): ModuleListUI {
+    return ModuleListUI(
+
+        moduleName = module,
+        moduleIndex = moduleIndex,
+        contentCount = contents.size,
+        content = contents.mapNotNull { contentItem ->
+            contentItem.contentId?.let {
+                ModuleListUI.ContentItemUI(
+                    contentId = it,
+                    title = contentItem.title ?: "Sin título",
+                    contentType = contentItem.contentType
+                        ?: CourseDetailWithModules.ContentType.TEXT,
+                    contentStatus = contentItem.status,
+                )
+            }
+        }
+    )
+}
+
+fun CourseDetailWithModules.toUI(): CourseDetailModulesUI {
+    val testsDone = modules.sumOf { contents ->
+        contents.contents.filter {
+            it.contentType == CourseDetailWithModules.ContentType.QUIZ && it.status == CourseDetailWithModules.ContentStatus.COMPLETED
+        }.size
+    }
+    val fullTests = modules.sumOf { contents ->
+        contents.contents.filter {
+            it.contentType == CourseDetailWithModules.ContentType.VIDEO
+        }.size
+    }
+
+    val viewedContent = modules.sumOf { contents ->
+        contents.contents.filter {
+            it.contentType != CourseDetailWithModules.ContentType.QUIZ && it.status == CourseDetailWithModules.ContentStatus.COMPLETED
+        }.size
+    }
+    val fullContent = modules.sumOf { contents -> contents.contents.size }
+
+    val contentPercentage = if (fullContent > 0) {
+        viewedContent.toFloat() / fullContent.toFloat()
+    } else {
+        0f
+    }
+
+    val quizPercentage = if (fullTests > 0) {
+        testsDone.toFloat() / fullTests.toFloat()
+    } else {
+        0f
+    }
+
+    return CourseDetailModulesUI(
+        id = this.courseId,
+        title = courseInfo.title,
+        description = courseInfo.description,
+        startDate = courseInfo.startDate,
+        progress = CourseProgressUI(
+            contentProgress = "$viewedContent/$fullContent",
+            contentPercentage = contentPercentage,
+            testProgress = "$testsDone/$fullTests",
+            testPercentage = quizPercentage
+        ),
+        modules = modules.map { it.toUI() }.sortedBy { it.moduleIndex },
+    )
+}
+
+/**
+ * Formats the start date from the API to a more readable format.
+ * The input is expected to be in the format "YYYY-MM-DDTHH:MM:SSZ".
+ * The output will be just the date part "YYYY-MM-DD".
+ */
+fun formatStartDate(startDate: String): String {
+    return try {
+        // Corrected pattern: Added .SSS for milliseconds and removed 'Z'
+        val inputFormat =
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
+        val date = inputFormat.parse(startDate)
+        val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        // The date object will not be null if parse() succeeds
+        if (date != null) {
+            outputFormat.format(date)
+        } else {
+            Log.e("CourseDetail", "Parsed date is null for start date: $startDate")
+            startDate // Return the original string if parsing fails
+        }
+    } catch (e: Exception) {
+        Log.e("CourseDetail", "Error parsing start date: $startDate", e)
+        startDate // Return the original string if parsing fails
+    }
+}
 
 fun formatDateFromMillis(millis: Long, pattern: String = "dd-MM-yyyy"): String {
     val date = Date(millis)
