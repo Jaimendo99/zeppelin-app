@@ -84,41 +84,30 @@ class LiveSessionService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "live_session_channel"
     }
-    // BLE fields
     private val btAdapter by lazy { BluetoothAdapter.getDefaultAdapter() }
     private var bleScanner: BluetoothLeScanner? = null
     private var isScanning = false
 
-    // If you want to debug *everything* in range, leave this = true.
-    // Once you see your watch, set it to false and only scan for SERVICE_UUID.
     private val DEBUG_WIDE_SCAN = false
 
     private val singleFilter = ScanFilter.Builder()
         .setServiceUuid(ParcelUuid(SERVICE_UUID))
         .build()
+
     private val scanSettings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
         .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-        .setReportDelay(0)
+        .setReportDelay(100)
         .setLegacy(true)
         .build()
 
     private val scanCb = object : ScanCallback() {
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onScanResult(ct: Int, result: ScanResult) {
-            Log.d(TAG,
-                "onScanResult: ${result.device.address}  RSSI=${result.rssi}  " +
-                        "UUIDs=${result.scanRecord?.serviceUuids}"
-            )
+             Log.d(TAG, "onScanResult: $ct, ${result.device.name} - ${result.device.address}")
         }
         override fun onScanFailed(errorCode: Int) {
-            val why = when(errorCode) {
-                ScanCallback.SCAN_FAILED_ALREADY_STARTED         -> "ALREADY_STARTED"
-                ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> "APP_REG_FAILED"
-                ScanCallback.SCAN_FAILED_INTERNAL_ERROR          -> "INTERNAL_ERROR"
-                ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED     -> "FEATURE_UNSUPPORTED"
-                else                                             -> "UNKNOWN($errorCode)"
-            }
-            Log.e(TAG, "onScanFailed: $why")
+            Log.e(TAG, "onScanFailed: $errorCode")
         }
     }
 
