@@ -131,35 +131,59 @@ class MainActivity : ComponentActivity() {
             distractionDetectionManager.requestUsageStatsPermission()
         }
         checkAndRequestPermissions()
+        checkAndRequestBlePerms()
     }
-    private fun checkAndRequestPermissions() {
-        val permissionsToAskFor = mutableListOf<String>()
+// In MainActivity.kt
 
-        // 1. POST_NOTIFICATIONS (Required for Android 13 (API 33) and above)
+    private fun checkAndRequestPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        // For Android 12 (S) and above
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+
+        // For Android 13 (T) and above (Notifications for the service)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToAskFor.add(Manifest.permission.POST_NOTIFICATIONS)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
-        // 2. BLUETOOTH_CONNECT (Required for Android 12 (API 31) and above)
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToAskFor.add(Manifest.permission.BLUETOOTH_CONNECT)
+        if (permissionsToRequest.isNotEmpty()) {
+            Log.i("PermissionRequest", "Requesting permissions: ${permissionsToRequest.joinToString()}")
+            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        } else {
+            Log.i("PermissionRequest", "All necessary runtime permissions are already granted.")
+            // You can now safely start your service
+        }
+    }
+
+    private val permLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            val denied = results.filterValues { !it }.keys
+            if (denied.isEmpty()) {
+                Log.d("MainActivity","All BLE perms granted")
+                // you can now safely start LiveSessionService
+            } else {
+                Log.e("MainActivity","BLE perms denied: $denied")
+            }
         }
 
-        if (permissionsToAskFor.isNotEmpty()) {
-            Log.i( "PermissionRequest", "Requesting permissions: ${permissionsToAskFor.joinToString()}" )
-            requestPermissionsLauncher.launch(permissionsToAskFor.toTypedArray())
+    private fun checkAndRequestBlePerms() {
+        val toRequest = mutableListOf<String>().apply {
+            add(Manifest.permission.BLUETOOTH_SCAN)
+            add(Manifest.permission.BLUETOOTH_CONNECT)
+        }.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (toRequest.isNotEmpty()) {
+            permLauncher.launch(toRequest.toTypedArray())
         } else {
-            Log.i( "PermissionRequest", "All necessary runtime permissions already granted." )
+            Log.d("MainActivity","BLE perms already granted")
         }
     }
 }

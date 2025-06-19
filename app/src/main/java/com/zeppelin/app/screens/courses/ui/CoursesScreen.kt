@@ -183,7 +183,6 @@ fun CourseCardWithProgressLoading(
         )
     ) {
         Column {
-            // image placeholder
             Box(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
@@ -191,7 +190,6 @@ fun CourseCardWithProgressLoading(
                     .height(integerResource(R.integer.course_image_height).dp)
             )
 
-            // title / subtitle / date placeholder
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

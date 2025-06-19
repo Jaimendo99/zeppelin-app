@@ -186,7 +186,7 @@ fun WatchStatus(
             .background(color = MaterialTheme.colorScheme.primaryContainer),
         onClick = {
              if (!connected) onParingClick()
-             else Log.d("WatchStatus", "Watch is already connected")
+             else Log.d("WatchStatus", "Watch is already connected"); onParingClick()
         }
     ) {
         if (connected) {

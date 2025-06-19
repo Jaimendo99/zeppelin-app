@@ -11,11 +11,35 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission
         android:name="android.permission.REQUEST_COMPANION_PROFILE_WATCH"
         android:usesPermissionFlags="neverForLocation" />
+
+    <!-- In your phone app's AndroidManifest.xml -->
+
+    <!-- Basic Bluetooth permissions -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+    <!-- Required for BLE scanning on Android 12 (API 31) and up -->
+    <!-- The "neverForLocation" flag is VERY important -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+
+    <!-- Required for connecting on Android 12 (API 31) and up -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!--
+     Required for BLE scanning on Android 6 (API 23) to 11 (API 30).
+     Even though you don't want location, the system requires it.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Declare that your app uses BLE hardware -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
 
     <application
         android:name=".ZeppelinApp"
