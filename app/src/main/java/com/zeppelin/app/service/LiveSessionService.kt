@@ -1,13 +1,25 @@
 package com.zeppelin.app.service
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.IBinder
+import android.os.ParcelUuid
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.zeppelin.app.MainActivity
 import com.zeppelin.app.R
 import com.zeppelin.app.screens._common.data.AnalyticsClient
@@ -46,6 +58,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import java.util.UUID
 
 class LiveSessionService : Service() {
 
@@ -55,7 +68,6 @@ class LiveSessionService : Service() {
     private val analyticsClient by inject<AnalyticsClient>()
     private val authPreferences by inject<AuthPreferences>()
     private val liveSessionPref by inject<ILiveSessionPref>()
-    private val watchLinkRepository: WatchLinkRepository by inject()
     private val distractionDetectionManager: DistractionDetectionManager by inject()
     private val wearCommunicator: WearCommunicator by inject()
 
@@ -63,6 +75,7 @@ class LiveSessionService : Service() {
     private lateinit var notificationManager: NotificationManager
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var currentCourseId: Int = -1
+    private val SERVICE_UUID = UUID.fromString( "0000feed-0000-1000-8000-00805f9b34fb" )
 
     private var sessionStartTime: Long? = null
 
@@ -71,6 +84,83 @@ class LiveSessionService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "live_session_channel"
     }
+    // BLE fields
+    private val btAdapter by lazy { BluetoothAdapter.getDefaultAdapter() }
+    private var bleScanner: BluetoothLeScanner? = null
+    private var isScanning = false
+
+    // If you want to debug *everything* in range, leave this = true.
+    // Once you see your watch, set it to false and only scan for SERVICE_UUID.
+    private val DEBUG_WIDE_SCAN = false
+
+    private val singleFilter = ScanFilter.Builder()
+        .setServiceUuid(ParcelUuid(SERVICE_UUID))
+        .build()
+    private val scanSettings = ScanSettings.Builder()
+        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+        .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+        .setReportDelay(0)
+        .setLegacy(true)
+        .build()
+
+    private val scanCb = object : ScanCallback() {
+        override fun onScanResult(ct: Int, result: ScanResult) {
+            Log.d(TAG,
+                "onScanResult: ${result.device.address}  RSSI=${result.rssi}  " +
+                        "UUIDs=${result.scanRecord?.serviceUuids}"
+            )
+        }
+        override fun onScanFailed(errorCode: Int) {
+            val why = when(errorCode) {
+                ScanCallback.SCAN_FAILED_ALREADY_STARTED         -> "ALREADY_STARTED"
+                ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> "APP_REG_FAILED"
+                ScanCallback.SCAN_FAILED_INTERNAL_ERROR          -> "INTERNAL_ERROR"
+                ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED     -> "FEATURE_UNSUPPORTED"
+                else                                             -> "UNKNOWN($errorCode)"
+            }
+            Log.e(TAG, "onScanFailed: $why")
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startRssiMonitoring() {
+        if (isScanning) {
+            Log.w(TAG, "Already scanning, skip")
+            return
+        }
+        if (ContextCompat.checkSelfPermission(
+                this, Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.e(TAG, "Cannot start scan, no BLUETOOTH_SCAN permission")
+            return
+        }
+        val adapter = btAdapter
+        if (adapter == null || !adapter.isEnabled) {
+            Log.e(TAG, "BT adapter null or disabled")
+            return
+        }
+        bleScanner = adapter.bluetoothLeScanner ?: run {
+            Log.e(TAG, "No BluetoothLeScanner")
+            return
+        }
+
+        // **IMPORTANT**: pass `null` here for no‐filter, not `emptyList()`
+        val filters = if (DEBUG_WIDE_SCAN) null else listOf(singleFilter)
+        Log.d(TAG, "Starting BLE scan; filter=${filters?.let{"$SERVICE_UUID"} ?: "NONE"}")
+        bleScanner!!.startScan(filters, scanSettings, scanCb)
+        isScanning = true
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun stopRssiMonitoring() {
+        if (!isScanning) return
+        bleScanner?.stopScan(scanCb)
+        Log.d(TAG, "Stopped BLE scan")
+        isScanning = false
+    }
+
+
 
     override fun onCreate() {
         super.onCreate()
@@ -80,9 +170,9 @@ class LiveSessionService : Service() {
         observeIncomingEvents()
         observePomodoroState()
         observeSessionEvents()
-        observeWatchRssi()
     }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
@@ -100,14 +190,8 @@ class LiveSessionService : Service() {
                 serviceScope.launch {
                     webSocketClient.connect(courseId, retry)
 
-                    val watchAddress = watchLinkRepository.watchAddress.firstOrNull()
-                    if (watchAddress != null) {
-                        Log.d(TAG, "Starting watch proximity monitoring for address: $watchAddress")
-                        watchProximityMonitor.startMonitoring(watchAddress)
-                    } else {
-                        Log.w(TAG, "No paired watch MAC address to start proximity monitoring.")
-                    }
                 }
+                startRssiMonitoring()
             }
 
             Action.STOP.name -> {
@@ -123,6 +207,7 @@ class LiveSessionService : Service() {
     private fun onStop() {
         serviceScope.launch {
             sendDistractionReport()
+            stopRssiMonitoring()
             wearCommunicator.sendStopMonitoringCommand()
             watchProximityMonitor.stopMonitoring()
             webSocketClient.disconnect()
@@ -137,6 +222,7 @@ class LiveSessionService : Service() {
             sendDistractionReport()
             wearCommunicator.sendStopMonitoringCommand()
         }
+        stopRssiMonitoring()
         watchProximityMonitor.stopMonitoring() // Ensure it's stopped here too
         serviceScope.cancel()
     }
@@ -277,44 +363,6 @@ class LiveSessionService : Service() {
         }
     }
 
-    private fun observeWatchRssi() {
-        serviceScope.launch {
-            val genReportData = ReportData(
-                userId = authPreferences.getUserIdOnce() ?: "",
-                device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce() ?: "",
-                addedAt = System.currentTimeMillis(),
-            )
-            watchProximityMonitor.currentRssi.collect { rssiValue ->
-                Log.i(TAG, "Watch RSSI updated: $rssiValue dBm")
-                if (rssiValue != null) {
-                    val rssiThreshold = -85 // Example: -85 dBm
-                    if (rssiValue < rssiThreshold) {
-                        Log.w(TAG, "Watch RSSI ($rssiValue) is below threshold ($rssiThreshold)")
-                        webSocketClient.sendEvent(WeakRssiEvent(rssiValue))
-                        analyticsClient.addReport(
-                            genReportData.copy(
-                                type = ReportType.WEAK_RSSI,
-                                body = WeakRssi(rssi = rssiValue)
-                            )
-                        )
-                    } else {
-                        Log.i(TAG, "Watch RSSI ($rssiValue) is above threshold ($rssiThreshold)")
-                        webSocketClient.sendEvent(StrongRssiEvent(rssiValue))
-                        analyticsClient.addReport(
-                            genReportData.copy(
-                                type = ReportType.STRONG_RSSI,
-                                body = StrongRssi(rssi = rssiValue)
-                            )
-                        )
-                    }
-                } else {
-                    Log.w(TAG, "Watch RSSI is null (disconnected or error reading).")
-                }
-            }
-        }
-    }
-
     private fun buildNotification(
         contentText: String,
         courseId: Int,
@@ -363,6 +411,8 @@ class LiveSessionService : Service() {
             .setColorized(colored)
             .setColor(notiColor)
     }
+    //
+
 
     enum class Action {
         START, STOP
