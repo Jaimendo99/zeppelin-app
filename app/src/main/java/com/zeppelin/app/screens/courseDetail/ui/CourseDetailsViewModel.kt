@@ -1,6 +1,7 @@
 package com.zeppelin.app.screens.courseDetail.ui
 
 import android.util.Log
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeppelin.app.screens._common.data.PomodoroState
@@ -16,13 +17,19 @@ import com.zeppelin.app.screens.courseDetail.data.QuizGradesUi
 import com.zeppelin.app.screens.courseDetail.data.QuizGradesUiState
 import com.zeppelin.app.screens.courseDetail.domain.toCourseDetailUI
 import com.zeppelin.app.screens.courseDetail.domain.toUI
+import com.zeppelin.app.screens.courseSession.data.MetricListItem
+import com.zeppelin.app.screens.courseSession.data.WatchMetricData
+import com.zeppelin.app.screens.courseSession.data.WatchMetricLists
 import com.zeppelin.app.screens.nav.Screens
+import com.zeppelin.app.service.wearCommunication.IWatchMetricsRepository
 import com.zeppelin.app.service.wearCommunication.WearCommunicator
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -30,16 +37,14 @@ class CourseDetailsViewModel(
     private val courseDetailRepo: ICourseDetailRepo,
     webSocketClient: WebSocketClient,
     eventsManager: SessionEventsManager,
-    private val wearCommunicator: WearCommunicator
+    private val wearCommunicator: WearCommunicator,
+    val metricsRepository: IWatchMetricsRepository
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<String>()
     val events = _events.asSharedFlow()
 
-    private val _courseDetail = MutableStateFlow<CourseDetailUI?>(null)
-    val courseDetail: StateFlow<CourseDetailUI?> = _courseDetail
-
-    private val _courseInfo = MutableStateFlow(CourseDetailModulesUIState())
+       private val _courseInfo = MutableStateFlow(CourseDetailModulesUIState())
     val courseInfo: StateFlow<CourseDetailModulesUIState> = _courseInfo
 
     private val _quizGrades = MutableStateFlow(QuizGradesUiState())
@@ -55,7 +60,15 @@ class CourseDetailsViewModel(
 
     val webSocketState: StateFlow<WebSocketState> = webSocketClient.state
 
+    val watchOff: StateFlow<Boolean?> = eventsManager.isOnWrist
+
+
+    private val _allMetricsHistory = MutableStateFlow(WatchMetricLists())
+    val allMetricsHistory: StateFlow<WatchMetricLists> = _allMetricsHistory.asStateFlow()
+
+
     companion object{
+        private const val MAX_LIST_SIZE = 200
         private const val TAG = "CourseDetailViewModel"
     }
 
@@ -71,6 +84,7 @@ class CourseDetailsViewModel(
                 }
             }
         }
+        collectAllMetrics()
     }
 
     fun startSession(courseId: Int, retry: Boolean = false) {
@@ -158,25 +172,6 @@ class CourseDetailsViewModel(
         )
     }
 
-    fun getCourseDetail(id: Int) {
-        _isLoading.value = true
-        viewModelScope.launch {
-            val courseDetail = async { courseDetailRepo.getCourseDetail(id) }.await()
-            val quizSummary = async { courseDetailRepo.getQuizAnswers() }.await()
-            val courseDetailResult = courseDetail.getOrNull()
-            val quizSummaryResult = quizSummary.getOrNull()
-
-            if (courseDetail.isFailure || quizSummary.isFailure || courseDetailResult == null || quizSummaryResult == null) {
-                _error.value = courseDetail.exceptionOrNull()?.message
-                    ?: quizSummary.exceptionOrNull()?.message
-                Log.e(TAG, "Error fetching course detail or quiz summary - ${_error.value}")
-                return@launch
-            }
-            _courseDetail.value = courseDetailResult.toCourseDetailUI(quizSummaryResult)
-            Log.d(TAG, "Course detail loaded successfully: ${_courseDetail.value}")
-            _isLoading.value = false
-        }
-    }
 
     fun onDisconnect() {
         viewModelScope.launch {
@@ -192,6 +187,7 @@ class CourseDetailsViewModel(
             viewModelScope.launch {
                 wearCommunicator.sendStartMonitoringCommand()
                 _events.emit("courseSession/$sessionId")
+                collectAllMetrics()
             }
         } else {
             Log.w(TAG, "onSessionStartClick called but session not ready or ID is empty.")
@@ -221,4 +217,59 @@ class CourseDetailsViewModel(
             .showContent
         Log.d(TAG, "accordion toggled: show -> $newShow")
     }
+
+
+    fun collectHeartRate() {
+        viewModelScope.launch {
+            metricsRepository.hearRate.collect { heartRate ->
+                Log.d(TAG, "heartRate: $heartRate")
+                heartRate?.let{
+                    val newItem = MetricListItem(it, System.currentTimeMillis())
+                    _allMetricsHistory.update { currentLists ->
+                        val updatedList = (currentLists.heartRate + newItem).takeLast(MAX_LIST_SIZE)
+                        currentLists.copy(heartRate = updatedList)
+                    }
+                }
+            }
+        }
+    }
+
+    fun collectMovementIntensity() {
+        viewModelScope.launch {
+            metricsRepository.movementDetected.collect { movementIntensity ->
+                Log.d(TAG, "movementIntensity: $movementIntensity")
+                movementIntensity?.let {
+                    val newItem = MetricListItem(it, System.currentTimeMillis())
+                    _allMetricsHistory.update { currentLists ->
+                        val updatedList = (currentLists.movementIntensity + newItem).takeLast(MAX_LIST_SIZE)
+                        currentLists.copy(movementIntensity = updatedList)
+                    }
+                }
+            }
+        }
+    }
+
+    fun collectRssi() {
+        viewModelScope.launch {
+            metricsRepository.rssi.collect { rssi ->
+                Log.d(TAG, "rssi: $rssi")
+                rssi?.let {
+                    val newItem = MetricListItem(it, System.currentTimeMillis())
+                    _allMetricsHistory.update { currentLists ->
+                        val updatedList = (currentLists.rssi + newItem).takeLast(MAX_LIST_SIZE)
+                        currentLists.copy(rssi = updatedList)
+                    }
+                }
+            }
+        }
+    }
+
+
+    private fun collectAllMetrics() {
+        Log.d(TAG, "collectAllMetrics called")
+        collectHeartRate()
+        collectMovementIntensity()
+        collectRssi()
+    }
+
 }

@@ -1,12 +1,9 @@
 package com.zeppelin.app.screens.courseSession.ui
 
 import android.util.Log
-import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.EaseInOutExpo
 import androidx.compose.animation.core.RepeatMode
@@ -29,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -39,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -71,8 +66,10 @@ import com.zeppelin.app.screens._common.data.PomodoroState
 import com.zeppelin.app.screens._common.data.TimerDigits
 import com.zeppelin.app.screens._common.ui.ButtonWithLoader
 import com.zeppelin.app.screens._common.ui.CardWithTitle
+import com.zeppelin.app.screens.courseDetail.data.CourseDetailModulesUIState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.ui.CourseDetailsViewModel
+import com.zeppelin.app.screens.courseSession.data.WatchMetricLists
 import com.zeppelin.app.ui.theme.ZeppelinTheme
 import com.zeppelin.app.ui.theme.bodyFontFamily
 import com.zeppelin.app.ui.theme.displayFontFamily
@@ -86,14 +83,9 @@ fun CourseSessionScreen(
     courseViewModel: CourseDetailsViewModel
 ) {
 
-    val courseDetail by courseViewModel.courseDetail.collectAsState()
+    val courseDetail by courseViewModel.courseInfo.collectAsState()
     val pomodoroState by courseViewModel.pomodoroState.collectAsState()
-    val contentViewData = ContentViewData(
-        "https://globe.gl/example/submarine-cables/",
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.onPrimary,
-        "yJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDIyMkFBQSIsImtpZCI6Imluc18ydFNyYW1TeGVIQ1Jld3NGZmFBM2U2UnlJRjAiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJodHRwczovL2FwaS5mb2N1c2VkLnVuby8iLCJlbWFpbCI6ImphaW1lbmRvOTlAZ21haWwuY29tIiwiZXhwIjoxNzQ3MDIzODYyLCJleHBfdG9rZW4iOiJ7e2p3dC5leHB9fSIsImlhdCI6MTc0NjQxOTA2MiwiaWF0XyI6Int7and0LmlhdH19IiwiaXNzIjoiaHR0cHM6Ly9jcnVjaWFsLXdvb2Rjb2NrLTMzLmNsZXJrLmFjY291bnRzLmRldiIsImp0aSI6IjkyNDlmZjIyNDdhY2VlZjU3MmY2IiwibmFtZSI6bnVsbCwibmJmIjoxNzQ2NDE5MDU3LCJwZXJtaXNzaW9ucyI6bnVsbCwicm9sZSI6Im9yZzphZG1pbiIsInN1YiI6InVzZXJfMnZXMURWaUlWWGpYSE9KTHhvVmhpY09HZzJBIiwic3VybmFtZSI6bnVsbCwidXNlcl9zdWIiOiJ1c2VyXzJ2VzFEVmlJVlhqWEhPSkx4b1ZoaWNPR2cyQSJ9.H0cIG575GFaBOl1YD-o3grnV8qDM9ZBJFH69miYZ6Hhm1epOWyynMcL_RVF4Y6dxWkFZD8XM-sEBKCrFqM6BgSn8t8u2_qMsfKQlWQrARHp-lKoHcxOpXPrecd2scgTxklOwR3xtueNZItC7BeB4agKOREnDyve1QbHfgLKich9gjUA6egrbQOhInLR6A-ppdNApOKBz6Ms1ZZAECKPrSH84CUnkQmqats8pbQSi9_kaQl0ZukQouVVQhw6xcB9kECvvEzTTiqLfVn9ytY2llhnM49Ji4SEj4F02YXrdDShbTNqv0NU6G3AQF-TUcNdymNQT7P2XNb2hIbMZ5LwlCA"
-    )
+    val sessionMetrics by courseViewModel.allMetricsHistory.collectAsState()
 
     BackHandler {
         if (pomodoroState.currentPhase == CurrentPhase.WORK) {
@@ -108,17 +100,17 @@ fun CourseSessionScreen(
         }
     }
 
-    LaunchedEffect(key1 = "data/$id") { courseViewModel.getCourseDetail(id.toInt()) }
+        LaunchedEffect(key1 = "data/$id") { courseViewModel.loadCourseDetails(id.toInt()) }
 
     if (courseDetail == null) return
     CourseSessionContent(
         pomodoroState = pomodoroState,
-        courseDetail = courseDetail!!,
+        courseDetail = courseDetail,
+        metrics = sessionMetrics,
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 16.dp),
-        contentViewData = contentViewData,
-    ){
+    ) {
         courseViewModel.onDisconnect()
     }
 }
@@ -131,6 +123,7 @@ data class ContentViewData(
     val token: String = "",
 ) {
     companion object
+
     fun buildUrl(): String {
         return "$url?backgroundColor=${backgroundColor.toArgb()}&textColor=${textColor.toArgb()}"
     }
@@ -138,9 +131,9 @@ data class ContentViewData(
 
 @Composable
 fun CourseSessionContent(
-    contentViewData: ContentViewData,
     pomodoroState: PomodoroState,
-    courseDetail: CourseDetailUI,
+    metrics: WatchMetricLists,
+    courseDetail: CourseDetailModulesUIState,
     modifier: Modifier = Modifier,
     onBackPressed: () -> Unit,
 ) {
@@ -158,7 +151,7 @@ fun CourseSessionContent(
 
         ) {
             Text(
-                text = courseDetail.course,
+                text = courseDetail.courseDetailModulesUI.title,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
@@ -181,13 +174,15 @@ fun CourseSessionContent(
                 .fillMaxWidth()
         ) {
             if (pomodoroState.currentPhase != CurrentPhase.NONE)
-                ContentView1(
-                    URL = contentViewData.buildUrl(),
-                    token = contentViewData.token,
-                    modifier = Modifier.fillMaxSize()
-                ) else ContentEmpty()
+//                ContentView1(
+//                    URL = contentViewData.buildUrl(),
+//                    token = contentViewData.token,
+//                    modifier = Modifier.fillMaxSize()
+//                )
+                MetricsPlot(metrics)
+            else ContentEmpty()
         }
-        ButtonWithLoader (
+        ButtonWithLoader(
             modifier = Modifier.padding(bottom = 48.dp),
             colors = ButtonDefaults.buttonColors()
                 .copy(containerColor = MaterialTheme.colorScheme.error),
@@ -306,11 +301,11 @@ fun CourseSessionContentPreview() {
     ZeppelinTheme {
         Scaffold { innerPadding ->
             CourseSessionContent(
-                ContentViewData(),
-                PomodoroState().copy(currentPhase = CurrentPhase.NONE),
-                CourseDetailUI().copy(course = "Test seCourseC ourseCour"),
+                PomodoroState().copy(currentPhase = CurrentPhase.WORK),
+                metrics = WatchMetricLists(),
+                courseDetail = CourseDetailModulesUIState( ),
                 Modifier.padding(innerPadding)
-            ){}
+            ) {}
         }
     }
 }

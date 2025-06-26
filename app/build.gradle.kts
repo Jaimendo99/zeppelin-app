@@ -106,6 +106,9 @@ dependencies {
     //Jetpack Compose Permissions
     implementation(libs.accompanist.permissions)
 
+    implementation (libs.compose.charts)
+    implementation("io.github.thechance101:chart:1.1.0")
+    implementation("co.yml:ycharts:2.1.0")
 
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
     implementation("com.google.firebase:firebase-messaging")

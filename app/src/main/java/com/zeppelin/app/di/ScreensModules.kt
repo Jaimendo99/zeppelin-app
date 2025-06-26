@@ -35,7 +35,7 @@ val courseDetailModules = module {
     single<SessionEventsManager>{ SessionEventsManager()}
 
     single<ICourseDetailRepo> { CourseDetailRepo(context = get(), get(), get(), get()) }
-    viewModel { CourseDetailsViewModel(get(), get(), get(), get()) }
+    viewModel { CourseDetailsViewModel(get(), get(), get(), get(), get()) }
 }
 
 val courseSessionModules = module {

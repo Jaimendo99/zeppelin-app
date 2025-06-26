@@ -69,8 +69,6 @@ class WebSocketClient(
 
     }
 
-
-
     suspend fun connect(courseId: Int, retry: Boolean = false) {
         Log.d(TAG, "Connecting to course $courseId")
         if (courseId < 1) {

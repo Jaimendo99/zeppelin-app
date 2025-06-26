@@ -3,6 +3,7 @@ package com.zeppelin.app.db
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
@@ -15,6 +16,7 @@ object PreferencesKeys {
     val AUTH_TOKEN = stringPreferencesKey("auth_token")
     val USER_ID = stringPreferencesKey("user_id")
     val FCM_TOKEN = stringPreferencesKey("fcm_token")
-    val SESSION_ID = stringPreferencesKey("session_id")
+    val SESSION_ID = intPreferencesKey("session_id_int")
+    val COURSE_ID = intPreferencesKey("course_id_int")
 }
 

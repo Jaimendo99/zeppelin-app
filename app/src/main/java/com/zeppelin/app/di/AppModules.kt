@@ -15,6 +15,8 @@ import com.zeppelin.app.service.pushNotifications.FcmRepository
 import com.zeppelin.app.service.pushNotifications.IFcmRepository
 import com.zeppelin.app.service.pushNotifications.NotificationService
 import com.zeppelin.app.service.pushNotifications.PushNotiPreferences
+import com.zeppelin.app.service.wearCommunication.IWatchMetricsRepository
+import com.zeppelin.app.service.wearCommunication.WatchMetricsRepository
 import com.zeppelin.app.service.wearCommunication.WatchProximityMonitor
 import com.zeppelin.app.service.wearCommunication.WearCommunicator
 import org.koin.android.ext.koin.androidContext
@@ -27,6 +29,7 @@ val appModule = module {
     single<ILiveSessionPref> { LiveSessionPref(get()) }
     single { DistractionDetectionManager(get()) }
     single { RestClient(get()) }
+    single <IWatchMetricsRepository> { WatchMetricsRepository() }
 }
 
 val pushNotificationModule = module {

@@ -3,6 +3,8 @@ package com.zeppelin.app.service.wearCommunication
 import android.util.Log
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.NodeClient
+import com.zeppelin.app.screens._common.data.CurrentPhase
+import com.zeppelin.app.screens._common.data.PomodoroState
 import kotlinx.coroutines.tasks.await
 
 class WearCommunicator(
@@ -22,6 +24,41 @@ class WearCommunicator(
     suspend fun sendStopMonitoringCommand() {
         sendMessageToNearbyNodes(COMMAND_STOP_MONITORING, "stop_monitoring".toByteArray())
     }
+
+    suspend fun sendLiveSessionConnected(){
+        sendMessageToNearbyNodes(WearOsPaths.CommandLiveSessionConnected.path, "live_session_connected".toByteArray())
+    }
+
+    suspend fun sendPomodoroInfo(pomodoroState : PomodoroState) {
+
+        Log.d(TAG, "Sending pomodoro info for current phase: $pomodoroState")
+        when(pomodoroState.currentPhase){
+            CurrentPhase.WORK -> {
+                val timerPercentage = if (pomodoroState.workDuration > 0) {
+                    (pomodoroState.workDuration - pomodoroState.remainingSeconds).div(pomodoroState.workDuration.toFloat())
+                } else  {
+                    0.0f
+                }
+
+                val payload = "$timerPercentage,${pomodoroState.timerDisplay}"
+                Log.d(TAG, "${pomodoroState.workDuration} -> Sending pomodoro work phase with payload: $payload")
+                sendMessageToNearbyNodes(WearOsPaths.CommandWorkPhase.path, payload.toByteArray())}
+
+            CurrentPhase.BREAK -> {
+                val timerPercentage = if (pomodoroState.breakDuration > 0) {
+                    (pomodoroState.breakDuration - pomodoroState.remainingSeconds).div(pomodoroState.breakDuration.toFloat())
+                } else 0f
+                val payload = "$timerPercentage,${pomodoroState.timerDisplay}"
+                Log.d(TAG, "Sending pomodoro break phase with payload: $payload")
+                sendMessageToNearbyNodes(WearOsPaths.CommandBreakPhase.path, payload.toByteArray())}
+            CurrentPhase.NONE -> {
+                Log.w(TAG, "No current phase set, not sending pomodoro info")
+                return
+            }
+        }
+    }
+
+
 
     private suspend fun sendMessageToNearbyNodes(path: String, payload: ByteArray) {
         try {

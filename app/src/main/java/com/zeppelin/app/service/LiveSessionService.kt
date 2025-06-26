@@ -14,6 +14,7 @@ import android.bluetooth.le.ScanSettings
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
@@ -36,18 +37,14 @@ import com.zeppelin.app.screens._common.data.ReportData
 import com.zeppelin.app.screens._common.data.ReportType
 import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.StatusUpdateMessage
-import com.zeppelin.app.screens._common.data.StrongRssi
-import com.zeppelin.app.screens._common.data.StrongRssiEvent
 import com.zeppelin.app.screens._common.data.UnPinScreen
 import com.zeppelin.app.screens._common.data.UnknownEvent
-import com.zeppelin.app.screens._common.data.WeakRssi
-import com.zeppelin.app.screens._common.data.WeakRssiEvent
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens._common.data.toAppUsageRecord
 import com.zeppelin.app.screens.auth.data.AuthPreferences
-import com.zeppelin.app.screens.watchLink.data.WatchLinkRepository
 import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
+import com.zeppelin.app.service.wearCommunication.IWatchMetricsRepository
 import com.zeppelin.app.service.wearCommunication.WatchProximityMonitor
 import com.zeppelin.app.service.wearCommunication.WearCommunicator
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +52,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import java.util.UUID
@@ -70,7 +66,9 @@ class LiveSessionService : Service() {
     private val liveSessionPref by inject<ILiveSessionPref>()
     private val distractionDetectionManager: DistractionDetectionManager by inject()
     private val wearCommunicator: WearCommunicator by inject()
+    private val watchMetricsRepository: IWatchMetricsRepository by inject()
 
+    private var courseId: Int = -1
 
     private lateinit var notificationManager: NotificationManager
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -97,14 +95,25 @@ class LiveSessionService : Service() {
     private val scanSettings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
         .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-        .setReportDelay(100)
+        .setReportDelay(0)
         .setLegacy(true)
         .build()
 
     private val scanCb = object : ScanCallback() {
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onScanResult(ct: Int, result: ScanResult) {
-             Log.d(TAG, "onScanResult: $ct, ${result.device.name} - ${result.device.address}")
+             Log.d(TAG, "onScanResult: ${result.rssi}, ${result.device.name} - ${result.device.address}")
+            watchMetricsRepository.emitRSSI(result.rssi)
+        }
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onBatchScanResults(results: List<ScanResult>) {
+            for (r in results) {
+                Log.d(
+                    TAG,
+                    "batch: ${r.device.name} - ${r.device.address}  rssi=${r.rssi}"
+                )
+                watchMetricsRepository.emitRSSI(r.rssi)
+            }
         }
         override fun onScanFailed(errorCode: Int) {
             Log.e(TAG, "onScanFailed: $errorCode")
@@ -170,15 +179,15 @@ class LiveSessionService : Service() {
         when (intent?.action) {
             Action.START.name -> {
                 Log.d(TAG, "Starting service...")
-                val courseId = intent.getIntExtra("courseId", -1)
+                courseId = intent.getIntExtra("courseId", -1)
                 val retry = intent.getBooleanExtra("retry", false)
                 startForeground(
                     NOTIFICATION_ID,
                     buildNotification("Starting session...", currentCourseId).build()
                 )
                 serviceScope.launch {
+                    liveSessionPref.saveCurrentCourseId(courseId)
                     webSocketClient.connect(courseId, retry)
-
                 }
                 startRssiMonitoring()
             }
@@ -195,6 +204,8 @@ class LiveSessionService : Service() {
 
     private fun onStop() {
         serviceScope.launch {
+            liveSessionPref.clearCourseId(courseId)
+            liveSessionPref.clearSessionId()
             sendDistractionReport()
             stopRssiMonitoring()
             wearCommunicator.sendStopMonitoringCommand()
@@ -208,6 +219,9 @@ class LiveSessionService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.launch {
+
+            liveSessionPref.clearSessionId()
+            liveSessionPref.clearCourseId(courseId)
             sendDistractionReport()
             wearCommunicator.sendStopMonitoringCommand()
         }
@@ -227,11 +241,13 @@ class LiveSessionService : Service() {
             analyticsClient.addReport(
                 ReportData(
                 userId = authPreferences.getUserIdOnce() ?: "",
-                device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce() ?: "",
+                device = Build.MODEL + " (${Build.MANUFACTURER})",
+                sessionId = liveSessionPref.getSessionIdOnce(),
                 addedAt = System.currentTimeMillis(),
                 type = ReportType.APP_USAGE,
-                body = AppUsageReport(report.map { it.toAppUsageRecord() })
+                courseId = currentCourseId,
+                body = AppUsageReport(report.map { it.toAppUsageRecord() }),
+
             ))
         }
     }
@@ -249,6 +265,7 @@ class LiveSessionService : Service() {
 
                     is WebSocketState.Connected -> {
                         Log.d(TAG, "WebSocket connected ${state.lastCourseId}")
+                        wearCommunicator.sendLiveSessionConnected()
                         currentCourseId = state.lastCourseId
                         "$title $currentCourseId" to "Connected"
                     }
@@ -273,6 +290,7 @@ class LiveSessionService : Service() {
         serviceScope.launch {
             eventsManager.pomodoroState.collect { state ->
                 if (webSocketClient.state.value is WebSocketState.Connected) {
+                    wearCommunicator.sendPomodoroInfo(state)
                     notificationManager.notify(
                         NOTIFICATION_ID,
                         buildNotification(
@@ -292,8 +310,9 @@ class LiveSessionService : Service() {
         serviceScope.launch {
             val genReportData = ReportData(
                 userId = authPreferences.getUserIdOnce() ?: "",
-                device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce() ?: "",
+                device = Build.MODEL + " (${Build.MANUFACTURER})",
+                sessionId = liveSessionPref.getSessionIdOnce(),
+                courseId = courseId,
                 addedAt = System.currentTimeMillis(),
             )
             eventsManager.lockTaskModeStatus.distinctUntilChanged().collect {
@@ -327,6 +346,7 @@ class LiveSessionService : Service() {
         serviceScope.launch {
             webSocketClient.wsEvents.collect { event ->
                 if (webSocketClient.state.value is WebSocketState.Connected) {
+                    Log.d(TAG, "Received event: $event")
                     when (event) {
                         is ClientHelloMessage -> eventsManager.handleClientHello(event)
                         is PomodoroExtendMessage -> eventsManager.handlePomodoroExtend(event)
@@ -335,9 +355,14 @@ class LiveSessionService : Service() {
                             event
                         )
 
-                        is PomodoroSessionEndMessage -> eventsManager.handlePomodoroSessionEnd(event)
+                        is PomodoroSessionEndMessage -> {
+                            wearCommunicator.sendStopMonitoringCommand()
+                            eventsManager.handlePomodoroSessionEnd(event)
+                        }
                         is PomodoroStartMessage -> {
+                            Log.d(TAG, "Received PomodoroStartMessage: $event")
                             sessionStartTime = System.currentTimeMillis()
+                            liveSessionPref.saveSessionId(event.sessionId)
                             eventsManager.handlePomodoroStart(serviceScope, event)
                         }
 

@@ -53,7 +53,6 @@ fun ZeppelinScaffold(
         Screens.Courses.route,
         Screens.CourseDetail.route,
         Screens.CourseSession.route -> true
-
         else -> false
     }
 
@@ -70,10 +69,12 @@ fun ZeppelinScaffold(
                 onParingClick = { viewModel.onParingClicked(navController) })
         },
         floatingActionButton = {
+            if (state) {
                 WatchStatus(
                     connected = connected,
                     onParingClick = { viewModel.onParingClicked(navController) }
                 )
+            }
         }
 
     ) { innerPadding ->

@@ -31,7 +31,7 @@ data class Platforms(
 data class PomodoroStartMessage(
     val config: PomodoroConfig,
     val startedAt: Long,
-    val sessionId: String,
+    @SerialName("session_id") val sessionId: Int,
     val senderId: String
 ) : WebSocketEvent
 
@@ -82,8 +82,7 @@ data class UnknownEvent(
 @SerialName("lock_task_removed")
 data class LockTaskRemovedEvent(
     @SerialName("remove_at") val removedAt: Long,
-): WebSocketEvent
-
+) : WebSocketEvent
 
 
 @Serializable
@@ -99,7 +98,6 @@ data class WearableOnEvent(
 ) : WebSocketEvent
 
 
-
 @Serializable
 @SerialName("WEAK_RSSI")
 data class WeakRssiEvent(
@@ -111,7 +109,6 @@ data class WeakRssiEvent(
 data class StrongRssiEvent(
     @SerialName("rssi") val rssi: Int,
 ) : WebSocketEvent
-
 
 
 @Serializable
@@ -127,8 +124,7 @@ data class WearableReconnectedEvent(
 ) : WebSocketEvent
 
 
-
-enum class LockTaskModeStatus(){
+enum class LockTaskModeStatus() {
     LOCK_TASK_MODE_NONE, //    Constant Value: 0 (0x00000000)
     LOCK_TASK_MODE_LOCKED, //    Constant Value: 1 (0x00000001)
     LOCK_TASK_MODE_PINNED, //    Constant Value: 2 (0x00000002)
@@ -177,8 +173,10 @@ data class TimerDigits(
 enum class CurrentPhase {
     @SerialName("work") // Map "work" JSON to WORK enum value
     WORK,
+
     @SerialName("break") // Map "break" JSON to BREAK enum value
     BREAK,
+
     @SerialName("none") // Map "none" JSON to NONE enum value
     NONE
 }

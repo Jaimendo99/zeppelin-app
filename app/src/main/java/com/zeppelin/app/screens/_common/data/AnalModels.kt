@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ReportData(
     val userId: String,
-    val sessionId: String,
+    val sessionId: Int?,
+    val courseId : Int,
     val type: ReportType? = null,
     val device: String,
     val addedAt:Long,

@@ -26,7 +26,7 @@ class ApiClient(
             defaultRequest {
                 url {
                     protocol = URLProtocol.HTTPS
-                    host = "dev.api.focused.uno"
+                    host = "api.focused.uno"
                 }
             }
             install(ContentNegotiation) { json(Json {
