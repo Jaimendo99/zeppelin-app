@@ -1,5 +1,7 @@
 package com.zeppelin.app.screens.courseSession.ui
 
+import android.app.ActivityManager
+import android.content.Context
 import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -62,6 +64,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import com.zeppelin.app.R
 import com.zeppelin.app.screens._common.data.CurrentPhase
+import com.zeppelin.app.screens._common.data.LockTaskModeStatus
 import com.zeppelin.app.screens._common.data.PomodoroState
 import com.zeppelin.app.screens._common.data.TimerDigits
 import com.zeppelin.app.screens._common.ui.ButtonWithLoader
@@ -69,6 +72,7 @@ import com.zeppelin.app.screens._common.ui.CardWithTitle
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailModulesUIState
 import com.zeppelin.app.screens.courseDetail.data.CourseDetailUI
 import com.zeppelin.app.screens.courseDetail.ui.CourseDetailsViewModel
+import com.zeppelin.app.screens.courseDetail.ui.SessionStateView
 import com.zeppelin.app.screens.courseSession.data.WatchMetricLists
 import com.zeppelin.app.ui.theme.ZeppelinTheme
 import com.zeppelin.app.ui.theme.bodyFontFamily
@@ -82,10 +86,12 @@ fun CourseSessionScreen(
     navController: NavController,
     courseViewModel: CourseDetailsViewModel
 ) {
-
     val courseDetail by courseViewModel.courseInfo.collectAsState()
     val pomodoroState by courseViewModel.pomodoroState.collectAsState()
     val sessionMetrics by courseViewModel.allMetricsHistory.collectAsState()
+    val watchOff by courseViewModel.watchOff.collectAsState()
+    val isWatchConnected by courseViewModel.isWatchConnected.collectAsState()
+    val isScreenPinned by courseViewModel.screenPin.collectAsState()
 
     BackHandler {
         if (pomodoroState.currentPhase == CurrentPhase.WORK) {
@@ -100,9 +106,8 @@ fun CourseSessionScreen(
         }
     }
 
-        LaunchedEffect(key1 = "data/$id") { courseViewModel.loadCourseDetails(id.toInt()) }
+    LaunchedEffect(key1 = "data/$id") { courseViewModel.loadCourseDetails(id.toInt()) }
 
-    if (courseDetail == null) return
     CourseSessionContent(
         pomodoroState = pomodoroState,
         courseDetail = courseDetail,
@@ -110,22 +115,13 @@ fun CourseSessionScreen(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 16.dp),
+        watchOff = watchOff == false,
+        screenPinned = isScreenPinned == LockTaskModeStatus.LOCK_TASK_MODE_PINNED,
+        watchConnected = isWatchConnected,
+        weakSignal = sessionMetrics.rssi.lastOrNull()?.value as Integer <= (-90),
+        pinScreen = { courseViewModel.pinScreen() }
     ) {
         courseViewModel.onDisconnect()
-    }
-}
-
-
-data class ContentViewData(
-    val url: String = "",
-    val backgroundColor: Color = Color.Transparent,
-    val textColor: Color = Color.Transparent,
-    val token: String = "",
-) {
-    companion object
-
-    fun buildUrl(): String {
-        return "$url?backgroundColor=${backgroundColor.toArgb()}&textColor=${textColor.toArgb()}"
     }
 }
 
@@ -135,6 +131,11 @@ fun CourseSessionContent(
     metrics: WatchMetricLists,
     courseDetail: CourseDetailModulesUIState,
     modifier: Modifier = Modifier,
+    watchOff: Boolean = false,
+    screenPinned: Boolean = false,
+    watchConnected : Boolean = true,
+    weakSignal : Boolean = false,
+    pinScreen : () -> Unit = {},
     onBackPressed: () -> Unit,
 ) {
     Column(
@@ -174,12 +175,15 @@ fun CourseSessionContent(
                 .fillMaxWidth()
         ) {
             if (pomodoroState.currentPhase != CurrentPhase.NONE)
-//                ContentView1(
-//                    URL = contentViewData.buildUrl(),
-//                    token = contentViewData.token,
-//                    modifier = Modifier.fillMaxSize()
-//                )
-                MetricsPlot(metrics)
+                SessionStateView(
+                    isWatchOff = watchOff,
+                    isScreenPinned = screenPinned,
+                    isWatchConnected = watchConnected,
+                    isSignalWeak = weakSignal,
+                    onPinClick = { pinScreen() },
+                ){
+                    MetricsPlot(metrics)
+                }
             else ContentEmpty()
         }
         ButtonWithLoader(
@@ -196,38 +200,6 @@ fun CourseSessionContent(
                 Spacer(Modifier.width(4.dp))
                 Text("End Session")
             }
-        }
-    }
-}
-
-
-@Composable
-fun ContentView1(URL: String, token: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    var isLoading by remember { mutableStateOf(true) }
-
-    Box {
-        AndroidView(
-            factory = {
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            isLoading = false     // page done
-                        }
-                    }
-
-                    val headers = mapOf("Authorization" to "Bearer $token")
-                    loadUrl(URL, headers)
-                }
-            },
-            modifier = modifier
-                .fillMaxSize()
-                .alpha(if (isLoading) 0f else 1f)   // hide while loading
-        )
-
-        if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         }
     }
 }

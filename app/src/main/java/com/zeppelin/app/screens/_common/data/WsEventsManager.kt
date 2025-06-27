@@ -35,8 +35,7 @@ class SessionEventsManager {
     private val _pomodoroState = MutableStateFlow(PomodoroState.Initial) // Start with initial state
     val pomodoroState: StateFlow<PomodoroState> = _pomodoroState.asStateFlow()
 
-    private val _pinningUiEventFlow =
-        MutableSharedFlow<PinningUiEvent>(replay = 0) // No replay needed for events
+    private val _pinningUiEventFlow = MutableSharedFlow<PinningUiEvent>(replay = 0)
     val pinningUiEventFlow: SharedFlow<PinningUiEvent> = _pinningUiEventFlow.asSharedFlow()
 
     private val _pinningManuallyExitedEventFlow = MutableSharedFlow<Unit>(replay = 0)
@@ -58,6 +57,7 @@ class SessionEventsManager {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         while (isActive) {
             val currentStatus = getCurrentLockTaskModeStatus(activityManager)
+            Log.d(TAG, "Lock task mode status: $currentStatus")
             trySend(currentStatus)
             delay(CHECK_INTERVAL_MILLIS)
         }
@@ -68,6 +68,15 @@ class SessionEventsManager {
         Log.d(TAG, "Updating on wrist status: $isOnWrist")
         _isOnWrist.value = isOnWrist
     }
+
+    suspend fun pinScreen(){
+        Log.d(TAG, "Updating lock task mode status")
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val currentStatus = getCurrentLockTaskModeStatus(activityManager)
+        Log.d(TAG, "Current lock task mode status: $currentStatus")
+        _pinningUiEventFlow.emit(PinningUiEvent.StartPinning)
+    }
+
 
 
 

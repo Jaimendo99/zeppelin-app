@@ -11,9 +11,13 @@ import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.UserHeartRate
 import com.zeppelin.app.screens._common.data.UserPhysicalActivity
 import com.zeppelin.app.screens._common.data.WearableDisconnected
+import com.zeppelin.app.screens._common.data.WearableDisconnectedEvent
 import com.zeppelin.app.screens._common.data.WearableOff
+import com.zeppelin.app.screens._common.data.WearableOffEvent
 import com.zeppelin.app.screens._common.data.WearableOn
+import com.zeppelin.app.screens._common.data.WearableOnEvent
 import com.zeppelin.app.screens._common.data.WearableReconnected
+import com.zeppelin.app.screens._common.data.WearableReconnectedEvent
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens.auth.data.AuthPreferences
 import com.zeppelin.app.screens.auth.domain.NetworkResult
@@ -67,7 +71,7 @@ class WearableMessageListenerService : WearableListenerService() {
                     Log.i(TAG, "Off-Wrist event received! Payload: $payload")
                     watchMetricsRepository.emitOffWrist(true)
                     eventsManager.updateOnWristStatus(false)
-//                    webSocketClient.sendEvent(WearableOffEvent(removedAt = System.currentTimeMillis()))
+                    webSocketClient.sendEvent(WearableOffEvent(removedAt = System.currentTimeMillis()))
                     eventsManager.updateOnWristStatus(false)
                     analyticsClient.addReport(
                         genReportData.copy(
@@ -82,7 +86,7 @@ class WearableMessageListenerService : WearableListenerService() {
                     Log.i(TAG, "On-Wrist event received! Payload: $payload")
                     eventsManager.updateOnWristStatus(true)
                     watchMetricsRepository.emitOffWrist(false)
-//                    webSocketClient.sendEvent(WearableOnEvent(addedAt = System.currentTimeMillis()))
+                    webSocketClient.sendEvent(WearableOnEvent(addedAt = System.currentTimeMillis()))
                     eventsManager.updateOnWristStatus(true)
                     analyticsClient.addReport(
                         genReportData.copy(
@@ -173,9 +177,7 @@ class WearableMessageListenerService : WearableListenerService() {
             )
             if (connectedNodes.isEmpty()) {
                 Log.w(TAG, "No connected nodes found.")
-//                webSocketClient.sendEvent(
-//                    WearableDisconnectedEvent(disconnectedAt = System.currentTimeMillis())
-//                )
+                webSocketClient.sendEvent(WearableDisconnectedEvent(disconnectedAt = System.currentTimeMillis()))
                 analyticsClient.addReport(
                     genReportData.copy(
                         type = ReportType.WEARABLE_DISCONNECTED,
@@ -192,9 +194,7 @@ class WearableMessageListenerService : WearableListenerService() {
                         body = WearableReconnected(reconnectedAt = System.currentTimeMillis())
                     )
                 )
-//                webSocketClient.sendEvent(
-//                    WearableReconnectedEvent(reconnectedAt = System.currentTimeMillis())
-//                )
+                webSocketClient.sendEvent( WearableReconnectedEvent(reconnectedAt = System.currentTimeMillis()) )
 
                 watchLinkRepository.saveIsConnectedToWatch(true)
             }

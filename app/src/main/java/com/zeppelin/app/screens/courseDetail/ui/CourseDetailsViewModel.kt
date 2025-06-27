@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zeppelin.app.screens._common.data.LockTaskModeStatus
 import com.zeppelin.app.screens._common.data.PomodoroState
 import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.WebSocketClient
@@ -21,23 +22,29 @@ import com.zeppelin.app.screens.courseSession.data.MetricListItem
 import com.zeppelin.app.screens.courseSession.data.WatchMetricData
 import com.zeppelin.app.screens.courseSession.data.WatchMetricLists
 import com.zeppelin.app.screens.nav.Screens
+import com.zeppelin.app.screens.watchLink.data.WatchLinkRepository
 import com.zeppelin.app.service.wearCommunication.IWatchMetricsRepository
 import com.zeppelin.app.service.wearCommunication.WearCommunicator
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class CourseDetailsViewModel(
     private val courseDetailRepo: ICourseDetailRepo,
     webSocketClient: WebSocketClient,
-    eventsManager: SessionEventsManager,
+    private val eventsManager: SessionEventsManager,
     private val wearCommunicator: WearCommunicator,
+    private val watchLinkRepository: WatchLinkRepository,
     val metricsRepository: IWatchMetricsRepository
 ) : ViewModel() {
 
@@ -62,6 +69,17 @@ class CourseDetailsViewModel(
 
     val watchOff: StateFlow<Boolean?> = eventsManager.isOnWrist
 
+    val isWatchConnected: StateFlow<Boolean> = watchLinkRepository.isConnectedToWatch.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = false
+    )
+
+    val screenPin : StateFlow<LockTaskModeStatus> = eventsManager.lockTaskModeStatus.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = LockTaskModeStatus.LOCK_TASK_MODE_NONE
+    )
 
     private val _allMetricsHistory = MutableStateFlow(WatchMetricLists())
     val allMetricsHistory: StateFlow<WatchMetricLists> = _allMetricsHistory.asStateFlow()
@@ -73,17 +91,6 @@ class CourseDetailsViewModel(
     }
 
     init {
-        viewModelScope.launch {
-            webSocketClient.state.collect { state ->
-                when (state) {
-                    is WebSocketState.Connected -> Log.d(TAG, "WebSocket connected ${state.lastCourseId}")
-                    is WebSocketState.Disconnected -> Log.d(TAG, "WebSocket disconnected")
-                    is WebSocketState.Error -> Log.d(TAG, "WebSocket error: ${state.message}")
-                    WebSocketState.Connecting -> Log.d(TAG, "WebSocket connecting")
-                    WebSocketState.Idle -> Log.d(TAG, "WebSocket idle")
-                }
-            }
-        }
         collectAllMetrics()
     }
 
@@ -261,6 +268,13 @@ class CourseDetailsViewModel(
                     }
                 }
             }
+        }
+    }
+
+    fun pinScreen(){
+        viewModelScope.launch {
+            eventsManager.pinScreen()
+            Log.d(TAG, "Screen pinned")
         }
     }
 

@@ -37,8 +37,10 @@ import com.zeppelin.app.screens._common.data.ReportData
 import com.zeppelin.app.screens._common.data.ReportType
 import com.zeppelin.app.screens._common.data.SessionEventsManager
 import com.zeppelin.app.screens._common.data.StatusUpdateMessage
+import com.zeppelin.app.screens._common.data.StrongRssiEvent
 import com.zeppelin.app.screens._common.data.UnPinScreen
 import com.zeppelin.app.screens._common.data.UnknownEvent
+import com.zeppelin.app.screens._common.data.WeakRssiEvent
 import com.zeppelin.app.screens._common.data.WebSocketClient
 import com.zeppelin.app.screens._common.data.WebSocketState
 import com.zeppelin.app.screens._common.data.toAppUsageRecord
@@ -73,7 +75,7 @@ class LiveSessionService : Service() {
     private lateinit var notificationManager: NotificationManager
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var currentCourseId: Int = -1
-    private val SERVICE_UUID = UUID.fromString( "0000feed-0000-1000-8000-00805f9b34fb" )
+    private val SERVICE_UUID = UUID.fromString("0000feed-0000-1000-8000-00805f9b34fb")
 
     private var sessionStartTime: Long? = null
 
@@ -82,6 +84,7 @@ class LiveSessionService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "live_session_channel"
     }
+
     private val btAdapter by lazy { BluetoothAdapter.getDefaultAdapter() }
     private var bleScanner: BluetoothLeScanner? = null
     private var isScanning = false
@@ -102,9 +105,13 @@ class LiveSessionService : Service() {
     private val scanCb = object : ScanCallback() {
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onScanResult(ct: Int, result: ScanResult) {
-             Log.d(TAG, "onScanResult: ${result.rssi}, ${result.device.name} - ${result.device.address}")
+            Log.d(
+                TAG,
+                "onScanResult: ${result.rssi}, ${result.device.name} - ${result.device.address}"
+            )
             watchMetricsRepository.emitRSSI(result.rssi)
         }
+
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onBatchScanResults(results: List<ScanResult>) {
             for (r in results) {
@@ -115,6 +122,7 @@ class LiveSessionService : Service() {
                 watchMetricsRepository.emitRSSI(r.rssi)
             }
         }
+
         override fun onScanFailed(errorCode: Int) {
             Log.e(TAG, "onScanFailed: $errorCode")
         }
@@ -145,7 +153,7 @@ class LiveSessionService : Service() {
 
         // **IMPORTANT**: pass `null` here for no‐filter, not `emptyList()`
         val filters = if (DEBUG_WIDE_SCAN) null else listOf(singleFilter)
-        Log.d(TAG, "Starting BLE scan; filter=${filters?.let{"$SERVICE_UUID"} ?: "NONE"}")
+        Log.d(TAG, "Starting BLE scan; filter=${filters?.let { "$SERVICE_UUID" } ?: "NONE"}")
         bleScanner!!.startScan(filters, scanSettings, scanCb)
         isScanning = true
     }
@@ -159,7 +167,6 @@ class LiveSessionService : Service() {
     }
 
 
-
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service onCreate")
@@ -168,6 +175,7 @@ class LiveSessionService : Service() {
         observeIncomingEvents()
         observePomodoroState()
         observeSessionEvents()
+        observeRssiValue()
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
@@ -240,15 +248,16 @@ class LiveSessionService : Service() {
         report?.let {
             analyticsClient.addReport(
                 ReportData(
-                userId = authPreferences.getUserIdOnce() ?: "",
-                device = Build.MODEL + " (${Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce(),
-                addedAt = System.currentTimeMillis(),
-                type = ReportType.APP_USAGE,
-                courseId = currentCourseId,
-                body = AppUsageReport(report.map { it.toAppUsageRecord() }),
+                    userId = authPreferences.getUserIdOnce() ?: "",
+                    device = Build.MODEL + " (${Build.MANUFACTURER})",
+                    sessionId = liveSessionPref.getSessionIdOnce(),
+                    addedAt = System.currentTimeMillis(),
+                    type = ReportType.APP_USAGE,
+                    courseId = currentCourseId,
+                    body = AppUsageReport(report.map { it.toAppUsageRecord() }),
 
-            ))
+                    )
+            )
         }
     }
 
@@ -308,6 +317,12 @@ class LiveSessionService : Service() {
 
     fun observeSessionEvents() {
         serviceScope.launch {
+            var wasPin = false
+            val sessionId = liveSessionPref.getSessionIdOnce()
+            if (sessionId == null) {
+                Log.w(TAG, "Session ID is null or empty, cannot observe events")
+                return@launch
+            }
             val genReportData = ReportData(
                 userId = authPreferences.getUserIdOnce() ?: "",
                 device = Build.MODEL + " (${Build.MANUFACTURER})",
@@ -318,10 +333,12 @@ class LiveSessionService : Service() {
             eventsManager.lockTaskModeStatus.distinctUntilChanged().collect {
                 when (it) {
                     LockTaskModeStatus.LOCK_TASK_MODE_PINNED -> {
+                        wasPin = true
                         Log.d(TAG, "Screen pinning enabled")
                     }
 
                     LockTaskModeStatus.LOCK_TASK_MODE_NONE -> {
+                        if (!wasPin) return@collect // Skip if it wasn't pinned before
                         webSocketClient.sendEvent(
                             LockTaskRemovedEvent(removedAt = System.currentTimeMillis())
                         )
@@ -359,6 +376,7 @@ class LiveSessionService : Service() {
                             wearCommunicator.sendStopMonitoringCommand()
                             eventsManager.handlePomodoroSessionEnd(event)
                         }
+
                         is PomodoroStartMessage -> {
                             Log.d(TAG, "Received PomodoroStartMessage: $event")
                             sessionStartTime = System.currentTimeMillis()
@@ -370,6 +388,28 @@ class LiveSessionService : Service() {
                         is UnknownEvent -> eventsManager.handleUnknownEvent(event)
                         else -> {
                             Log.d(TAG, "Unknown event: $event")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeRssiValue() {
+        serviceScope.launch {
+            var wasWeak = false
+            watchMetricsRepository.rssi.collect { rssi ->
+                Log.d(TAG, "Current RSSI: $rssi")
+                if (webSocketClient.state.value is WebSocketState.Connected && rssi != null) {
+                    when(rssi){
+                        in Int.MIN_VALUE..-100 -> {
+                            if (wasWeak) return@collect // Skip if already weak
+                            webSocketClient.sendEvent(WeakRssiEvent(rssi = rssi))
+                            wasWeak = true
+                        }
+                        in -90..Int.MAX_VALUE -> {
+                            if (!wasWeak) return@collect // Skip if not weak
+                            webSocketClient.sendEvent(StrongRssiEvent(rssi = rssi))
                         }
                     }
                 }

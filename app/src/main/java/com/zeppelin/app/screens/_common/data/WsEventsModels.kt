@@ -142,6 +142,12 @@ val AppJsonModule = SerializersModule {
         subclass(ClientHelloMessage::class)
         subclass(UnknownEvent::class)
         subclass(LockTaskRemovedEvent::class)
+        subclass(WearableOffEvent::class)
+        subclass(WearableOnEvent::class)
+        subclass(WearableDisconnectedEvent::class)
+        subclass(WearableReconnectedEvent::class)
+        subclass(WeakRssiEvent::class)
+        subclass(StrongRssiEvent::class)
     }
 }
 

@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
                 sessionEventsManager.pinningUiEventFlow.collect { event ->
                     when (event) {
                         is PinningUiEvent.StartPinning -> {
+                            Log.d("MainActivity", "Received StartPinning event")
                             try {
                                 startLockTask()
                                 isAppCurrentlyPinned = true // App initiated pinning
