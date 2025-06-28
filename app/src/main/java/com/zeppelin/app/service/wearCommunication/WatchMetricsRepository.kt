@@ -23,8 +23,6 @@ class WatchMetricsRepository : IWatchMetricsRepository {
     private val _hearRate = MutableStateFlow<Int?>(null)
     override val hearRate: Flow<Int?> = _hearRate.asStateFlow()
 
-    // Changed to MutableStateFlow<Float?> to represent current movement intensity,
-    // which can be null or 0.0f if no movement is currently detected.
     private val _movementDetected = MutableStateFlow<Float?>(null)
     override val movementDetected: Flow<Float?> = _movementDetected.asStateFlow()
 
@@ -43,9 +41,6 @@ class WatchMetricsRepository : IWatchMetricsRepository {
     }
 
     override fun emitMovementDetected(value: Float?) {
-        // No longer suspend, directly sets the value.
-        // If movement is detected, set its intensity. If not, you might set it to 0.0f or null
-        // depending on how your sensor data stream works.
         _movementDetected.value = value
     }
 

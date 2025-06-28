@@ -313,7 +313,7 @@ fun CourseProgressBar(
         .padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 4.dp )
         .fillMaxWidth()
         .height(8.dp)
-        , progress = { progress }, gapSize = 0.dp,
+        , progress = { progress/100 }, gapSize = 0.dp,
         trackColor = trackColor,
         color = progressColor,
 

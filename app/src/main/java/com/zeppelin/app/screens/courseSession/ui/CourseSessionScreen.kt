@@ -108,20 +108,22 @@ fun CourseSessionScreen(
 
     LaunchedEffect(key1 = "data/$id") { courseViewModel.loadCourseDetails(id.toInt()) }
 
-    CourseSessionContent(
-        pomodoroState = pomodoroState,
-        courseDetail = courseDetail,
-        metrics = sessionMetrics,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp),
-        watchOff = watchOff == false,
-        screenPinned = isScreenPinned == LockTaskModeStatus.LOCK_TASK_MODE_PINNED,
-        watchConnected = isWatchConnected,
-        weakSignal = sessionMetrics.rssi.lastOrNull()?.value as Integer <= (-90),
-        pinScreen = { courseViewModel.pinScreen() }
-    ) {
-        courseViewModel.onDisconnect()
+    (sessionMetrics.rssi.lastOrNull()?.value as Integer?)?.let {
+        CourseSessionContent(
+            pomodoroState = pomodoroState,
+            courseDetail = courseDetail,
+            metrics = sessionMetrics,
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            watchOff = watchOff == false,
+            screenPinned = isScreenPinned == LockTaskModeStatus.LOCK_TASK_MODE_PINNED,
+            watchConnected = isWatchConnected,
+            weakSignal = it <= (-90),
+            pinScreen = { courseViewModel.pinScreen() }
+        ) {
+            courseViewModel.onDisconnect()
+        }
     }
 }
 

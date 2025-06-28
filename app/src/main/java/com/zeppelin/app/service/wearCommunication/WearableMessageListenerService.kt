@@ -31,11 +31,7 @@ import org.koin.android.ext.android.inject
 
 class WearableMessageListenerService : WearableListenerService() {
 
-    private val webSocketClient: WebSocketClient by inject()
     private val eventsManager: SessionEventsManager by inject()
-    private val analyticsClient: AnalyticsClient by inject()
-    private val authPreferences: AuthPreferences by inject()
-    private val liveSessionPref: ILiveSessionPref by inject()
     private val watchLinkRepository: WatchLinkRepository by inject()
     private val watchMetricsRepository: IWatchMetricsRepository by inject()
 
@@ -53,74 +49,25 @@ class WearableMessageListenerService : WearableListenerService() {
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         serviceScope.launch {
-            val sessionId = liveSessionPref.getSessionIdOnce()
-            if (sessionId == null || sessionId == 0) {
-                Log.w(TAG, "Session ID is null or empty, ignoring message: ${messageEvent.path}")
-                return@launch
-            }
-            val genReportData = ReportData(
-                userId = authPreferences.getUserIdOnce() ?: "user_not_found",
-                device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = sessionId,
-                addedAt = System.currentTimeMillis(),
-                courseId = liveSessionPref.getCourseIdOnce() ?: -1
-            )
             when (messageEvent.path) {
                 PATH_EVENT_OFF_WRIST -> {
                     val payload = String(messageEvent.data)
                     Log.i(TAG, "Off-Wrist event received! Payload: $payload")
                     watchMetricsRepository.emitOffWrist(true)
                     eventsManager.updateOnWristStatus(false)
-                    webSocketClient.sendEvent(WearableOffEvent(removedAt = System.currentTimeMillis()))
-                    eventsManager.updateOnWristStatus(false)
-                    analyticsClient.addReport(
-                        genReportData.copy(
-                            type = ReportType.WEARABLE_OFF,
-                            body = WearableOff(removedAt = System.currentTimeMillis())
-                        )
-                    )
                 }
 
                 PATH_EVENT_ON_WRIST -> {
                     val payload = String(messageEvent.data)
                     Log.i(TAG, "On-Wrist event received! Payload: $payload")
-                    eventsManager.updateOnWristStatus(true)
                     watchMetricsRepository.emitOffWrist(false)
-                    webSocketClient.sendEvent(WearableOnEvent(addedAt = System.currentTimeMillis()))
                     eventsManager.updateOnWristStatus(true)
-                    analyticsClient.addReport(
-                        genReportData.copy(
-                            type = ReportType.WEARABLE_ON,
-                            body = WearableOn(addedAt = System.currentTimeMillis())
-                        )
-                    )
                 }
 
                 PATH_EVENT_MOVEMENT_DETECTED -> {
                     val payload = String(messageEvent.data)
                     Log.i(TAG, "Movement detected event received! Payload: $payload")
                     val speed = payload.toFloatOrNull()
-                    val result = analyticsClient.addReport(
-                        genReportData.copy(
-                            type = ReportType.USER_PHYSICAL_ACTIVITY,
-                            body = UserPhysicalActivity(
-                                detectedAt = System.currentTimeMillis(),
-                                speed = speed ?: 0.0f
-                            )
-                        )
-                    )
-                    when (result) {
-                        is NetworkResult.Success ->{
-                            Log.d(TAG, "Movement detected report added successfully: $result")
-                        }
-                        is NetworkResult.Error -> {
-                            Log.e(TAG, "Failed to add UserPhysicalActivity report: ${result.exception?.message}")
-                        }
-                        else -> {
-                            Log.w(TAG, "Unexpected result type: $result")
-                        }
-                    }
-
                         if (speed == null) { Log.w(TAG, "Invalid speed value received: $payload")
                         } else {
                             watchMetricsRepository.emitMovementDetected(speed)
@@ -137,16 +84,6 @@ class WearableMessageListenerService : WearableListenerService() {
                         val count = parts[1].toIntOrNull() ?: 0
                         val mean = parts[2].toFloatOrNull() ?: 0.0f
                         Log.d( TAG, "Heart Rate Summary - Rate: $heartRate, Count: $count, Mean: $mean" )
-                        analyticsClient.addReport( genReportData.copy(
-                            type = ReportType.USER_HEARTRATE,
-                            body = UserHeartRate(
-                                heartRateChange = UserHeartRate.HeartRateRecord(
-                                    value = heartRate, mean = mean, count = count,
-                                    time = System.currentTimeMillis()
-                                    )
-                                )
-                            )
-                        )
                         watchMetricsRepository.emitHeartRate(heartRate)
                     } else {
                         Log.w(TAG, "Invalid heart rate summary format: $payload")
@@ -168,34 +105,12 @@ class WearableMessageListenerService : WearableListenerService() {
         super.onConnectedNodes(connectedNodes)
         Log.d(TAG, "Connected nodes: ${connectedNodes.joinToString { it.displayName }}")
         serviceScope.launch {
-            val genReportData = ReportData(
-                userId = authPreferences.getUserIdOnce() ?: "",
-                device = android.os.Build.MODEL + " (${android.os.Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce() ,
-                courseId = liveSessionPref.getCourseIdOnce() ?: -1,
-                addedAt = System.currentTimeMillis(),
-            )
             if (connectedNodes.isEmpty()) {
                 Log.w(TAG, "No connected nodes found.")
-                webSocketClient.sendEvent(WearableDisconnectedEvent(disconnectedAt = System.currentTimeMillis()))
-                analyticsClient.addReport(
-                    genReportData.copy(
-                        type = ReportType.WEARABLE_DISCONNECTED,
-                        body = WearableDisconnected(disconnectedAt = System.currentTimeMillis())
-                    )
-                )
                 watchLinkRepository.saveIsConnectedToWatch(false)
 
             } else {
                 Log.i(TAG, "Connected nodes: ${connectedNodes.size}")
-                analyticsClient.addReport(
-                    genReportData.copy(
-                        type = ReportType.WEARABLE_CONNECTED,
-                        body = WearableReconnected(reconnectedAt = System.currentTimeMillis())
-                    )
-                )
-                webSocketClient.sendEvent( WearableReconnectedEvent(reconnectedAt = System.currentTimeMillis()) )
-
                 watchLinkRepository.saveIsConnectedToWatch(true)
             }
         }

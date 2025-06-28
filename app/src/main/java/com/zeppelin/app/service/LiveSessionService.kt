@@ -69,6 +69,7 @@ class LiveSessionService : Service() {
     private val distractionDetectionManager: DistractionDetectionManager by inject()
     private val wearCommunicator: WearCommunicator by inject()
     private val watchMetricsRepository: IWatchMetricsRepository by inject()
+    private val eventsAndMetricsOutHandler: EventsAndMetricsOutHandler by inject()
 
     private var courseId: Int = -1
 
@@ -105,10 +106,6 @@ class LiveSessionService : Service() {
     private val scanCb = object : ScanCallback() {
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onScanResult(ct: Int, result: ScanResult) {
-            Log.d(
-                TAG,
-                "onScanResult: ${result.rssi}, ${result.device.name} - ${result.device.address}"
-            )
             watchMetricsRepository.emitRSSI(result.rssi)
         }
 
@@ -174,7 +171,6 @@ class LiveSessionService : Service() {
         observeWebSocketState()
         observeIncomingEvents()
         observePomodoroState()
-        observeSessionEvents()
         observeRssiValue()
     }
 
@@ -197,6 +193,7 @@ class LiveSessionService : Service() {
                     liveSessionPref.saveCurrentCourseId(courseId)
                     webSocketClient.connect(courseId, retry)
                 }
+                eventsAndMetricsOutHandler.start()
                 startRssiMonitoring()
             }
 
@@ -221,21 +218,25 @@ class LiveSessionService : Service() {
             webSocketClient.disconnect()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            serviceScope.cancel()
+            eventsAndMetricsOutHandler.stop()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.launch {
-
             liveSessionPref.clearSessionId()
             liveSessionPref.clearCourseId(courseId)
             sendDistractionReport()
             wearCommunicator.sendStopMonitoringCommand()
+
+            eventsAndMetricsOutHandler.stop()
+            stopRssiMonitoring()
+            watchProximityMonitor.stopMonitoring() // Ensure it's stopped here too
+            serviceScope.cancel()
         }
-        stopRssiMonitoring()
-        watchProximityMonitor.stopMonitoring() // Ensure it's stopped here too
-        serviceScope.cancel()
+
     }
 
     private suspend fun sendDistractionReport() {
@@ -315,50 +316,6 @@ class LiveSessionService : Service() {
         }
     }
 
-    fun observeSessionEvents() {
-        serviceScope.launch {
-            var wasPin = false
-            val sessionId = liveSessionPref.getSessionIdOnce()
-            if (sessionId == null) {
-                Log.w(TAG, "Session ID is null or empty, cannot observe events")
-                return@launch
-            }
-            val genReportData = ReportData(
-                userId = authPreferences.getUserIdOnce() ?: "",
-                device = Build.MODEL + " (${Build.MANUFACTURER})",
-                sessionId = liveSessionPref.getSessionIdOnce(),
-                courseId = courseId,
-                addedAt = System.currentTimeMillis(),
-            )
-            eventsManager.lockTaskModeStatus.distinctUntilChanged().collect {
-                when (it) {
-                    LockTaskModeStatus.LOCK_TASK_MODE_PINNED -> {
-                        wasPin = true
-                        Log.d(TAG, "Screen pinning enabled")
-                    }
-
-                    LockTaskModeStatus.LOCK_TASK_MODE_NONE -> {
-                        if (!wasPin) return@collect // Skip if it wasn't pinned before
-                        webSocketClient.sendEvent(
-                            LockTaskRemovedEvent(removedAt = System.currentTimeMillis())
-                        )
-                        analyticsClient.addReport(
-                            genReportData.copy(
-                                type = ReportType.UNPIN_SCREEN,
-                                body = UnPinScreen(removedAt = System.currentTimeMillis())
-                            )
-                        )
-                        Log.d(TAG, "Screen pinning disabled")
-                    }
-
-                    LockTaskModeStatus.LOCK_TASK_MODE_LOCKED -> {
-                        Log.d(TAG, "Screen pinning locked")
-                    }
-                }
-            }
-        }
-    }
-
     private fun observeIncomingEvents() {
         serviceScope.launch {
             webSocketClient.wsEvents.collect { event ->
@@ -396,25 +353,7 @@ class LiveSessionService : Service() {
     }
 
     private fun observeRssiValue() {
-        serviceScope.launch {
-            var wasWeak = false
-            watchMetricsRepository.rssi.collect { rssi ->
-                Log.d(TAG, "Current RSSI: $rssi")
-                if (webSocketClient.state.value is WebSocketState.Connected && rssi != null) {
-                    when(rssi){
-                        in Int.MIN_VALUE..-100 -> {
-                            if (wasWeak) return@collect // Skip if already weak
-                            webSocketClient.sendEvent(WeakRssiEvent(rssi = rssi))
-                            wasWeak = true
-                        }
-                        in -90..Int.MAX_VALUE -> {
-                            if (!wasWeak) return@collect // Skip if not weak
-                            webSocketClient.sendEvent(StrongRssiEvent(rssi = rssi))
-                        }
-                    }
-                }
-            }
-        }
+
     }
 
     private fun buildNotification(

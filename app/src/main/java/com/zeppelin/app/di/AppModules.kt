@@ -8,6 +8,7 @@ import com.zeppelin.app.screens._common.data.AnalyticsClient
 import com.zeppelin.app.screens._common.data.ApiClient
 import com.zeppelin.app.screens._common.data.RestClient
 import com.zeppelin.app.screens._common.ui.ScaffoldViewModel
+import com.zeppelin.app.service.EventsAndMetricsOutHandler
 import com.zeppelin.app.service.ILiveSessionPref
 import com.zeppelin.app.service.LiveSessionPref
 import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
@@ -23,18 +24,18 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val appModule = module {
-    single {ScaffoldViewModel(get())}
+    single { ScaffoldViewModel(get()) }
     single { ApiClient(get()) }
     single { AnalyticsClient(get()) }
     single<ILiveSessionPref> { LiveSessionPref(get()) }
     single { DistractionDetectionManager(get()) }
     single { RestClient(get()) }
-    single <IWatchMetricsRepository> { WatchMetricsRepository() }
+    single<IWatchMetricsRepository> { WatchMetricsRepository() }
 }
 
 val pushNotificationModule = module {
     single { PushNotiPreferences(get()) }
-    single<IFcmRepository>{ FcmRepository(get(), get()) }
+    single<IFcmRepository> { FcmRepository(get(), get()) }
     single { NotificationService() }
     single { DistractionDetectionManager(get()) }
 }
@@ -45,4 +46,5 @@ val liveSessionModule = module {
     single<DataClient> { Wearable.getDataClient(androidContext()) }
     single { WearCommunicator(get(), get()) }
     single { WatchProximityMonitor(get()) }
+    single { EventsAndMetricsOutHandler(get(), get(), get(), get(), get(), get(), get()) }
 }

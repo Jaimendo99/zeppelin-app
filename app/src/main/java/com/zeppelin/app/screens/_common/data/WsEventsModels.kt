@@ -86,6 +86,15 @@ data class LockTaskRemovedEvent(
 
 
 @Serializable
+@SerialName("lock_task_on")
+data class LockTaskOnEvent(
+    @SerialName("on_at") val onAt: Long,
+) : WebSocketEvent
+
+
+
+
+@Serializable
 @SerialName("WEARABLE_OFF")
 data class WearableOffEvent(
     @SerialName("time") val removedAt: Long,
@@ -148,6 +157,7 @@ val AppJsonModule = SerializersModule {
         subclass(WearableReconnectedEvent::class)
         subclass(WeakRssiEvent::class)
         subclass(StrongRssiEvent::class)
+        subclass(LockTaskOnEvent::class)
     }
 }
 

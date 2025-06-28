@@ -46,7 +46,7 @@ data class UserHeartRate(
 ) : ReportBody {
     @Serializable
     data class HeartRateRecord(
-        val value: Int, // Heart rate value
+        val value: Int?, // Heart rate value
         val mean: Float, // Mean heart rate value
         val count: Int, // Count of heart rate samples
         val time: Long // Timestamp in milliseconds

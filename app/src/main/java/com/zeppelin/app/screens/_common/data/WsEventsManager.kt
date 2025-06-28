@@ -77,6 +77,11 @@ class SessionEventsManager {
         _pinningUiEventFlow.emit(PinningUiEvent.StartPinning)
     }
 
+    suspend fun unpinScreen() {
+        Log.d(TAG, "Unpinning screen")
+        _pinningUiEventFlow.emit(PinningUiEvent.StopPinning)
+        _pinningManuallyExitedEventFlow.emit(Unit)
+    }
 
 
 

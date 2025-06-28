@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -184,6 +186,7 @@ class CourseDetailsViewModel(
         viewModelScope.launch {
             wearCommunicator.sendStopMonitoringCommand()
             courseDetailRepo.disconnectFromSession()
+            eventsManager.unpinScreen()
             _events.emit(Screens.Courses.route)
         }
     }
@@ -228,9 +231,9 @@ class CourseDetailsViewModel(
 
     fun collectHeartRate() {
         viewModelScope.launch {
-            metricsRepository.hearRate.collect { heartRate ->
+            metricsRepository.hearRate.filterNotNull().collect { heartRate ->
                 Log.d(TAG, "heartRate: $heartRate")
-                heartRate?.let{
+                heartRate.let{
                     val newItem = MetricListItem(it, System.currentTimeMillis())
                     _allMetricsHistory.update { currentLists ->
                         val updatedList = (currentLists.heartRate + newItem).takeLast(MAX_LIST_SIZE)
@@ -243,9 +246,9 @@ class CourseDetailsViewModel(
 
     fun collectMovementIntensity() {
         viewModelScope.launch {
-            metricsRepository.movementDetected.collect { movementIntensity ->
+            metricsRepository.movementDetected.filterNotNull().collect { movementIntensity ->
                 Log.d(TAG, "movementIntensity: $movementIntensity")
-                movementIntensity?.let {
+                movementIntensity.let {
                     val newItem = MetricListItem(it, System.currentTimeMillis())
                     _allMetricsHistory.update { currentLists ->
                         val updatedList = (currentLists.movementIntensity + newItem).takeLast(MAX_LIST_SIZE)
@@ -258,9 +261,9 @@ class CourseDetailsViewModel(
 
     fun collectRssi() {
         viewModelScope.launch {
-            metricsRepository.rssi.collect { rssi ->
+            metricsRepository.rssi.filterNotNull().collect { rssi ->
                 Log.d(TAG, "rssi: $rssi")
-                rssi?.let {
+                rssi.let {
                     val newItem = MetricListItem(it, System.currentTimeMillis())
                     _allMetricsHistory.update { currentLists ->
                         val updatedList = (currentLists.rssi + newItem).takeLast(MAX_LIST_SIZE)
