@@ -100,6 +100,7 @@ fun CourseSessionScreen(
     }
 
     LaunchedEffect(Unit) {
+        Log.d("CourseSession", "CourseSessionScreen LaunchedEffect")
         courseViewModel.events.collect { event ->
             navController.navigate(event) {
             }

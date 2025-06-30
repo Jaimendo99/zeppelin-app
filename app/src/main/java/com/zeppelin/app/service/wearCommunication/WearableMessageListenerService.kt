@@ -4,25 +4,8 @@ import android.util.Log
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.WearableListenerService
-import com.zeppelin.app.screens._common.data.AnalyticsClient
-import com.zeppelin.app.screens._common.data.ReportData
-import com.zeppelin.app.screens._common.data.ReportType
 import com.zeppelin.app.screens._common.data.SessionEventsManager
-import com.zeppelin.app.screens._common.data.UserHeartRate
-import com.zeppelin.app.screens._common.data.UserPhysicalActivity
-import com.zeppelin.app.screens._common.data.WearableDisconnected
-import com.zeppelin.app.screens._common.data.WearableDisconnectedEvent
-import com.zeppelin.app.screens._common.data.WearableOff
-import com.zeppelin.app.screens._common.data.WearableOffEvent
-import com.zeppelin.app.screens._common.data.WearableOn
-import com.zeppelin.app.screens._common.data.WearableOnEvent
-import com.zeppelin.app.screens._common.data.WearableReconnected
-import com.zeppelin.app.screens._common.data.WearableReconnectedEvent
-import com.zeppelin.app.screens._common.data.WebSocketClient
-import com.zeppelin.app.screens.auth.data.AuthPreferences
-import com.zeppelin.app.screens.auth.domain.NetworkResult
 import com.zeppelin.app.screens.watchLink.data.WatchLinkRepository
-import com.zeppelin.app.service.ILiveSessionPref
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,10 +51,11 @@ class WearableMessageListenerService : WearableListenerService() {
                     val payload = String(messageEvent.data)
                     Log.i(TAG, "Movement detected event received! Payload: $payload")
                     val speed = payload.toFloatOrNull()
-                        if (speed == null) { Log.w(TAG, "Invalid speed value received: $payload")
-                        } else {
-                            watchMetricsRepository.emitMovementDetected(speed)
-                            Log.d(TAG, "Movement detected with speed: $speed m/s")
+                    if (speed == null) {
+                        Log.w(TAG, "Invalid speed value received: $payload")
+                    } else {
+                        watchMetricsRepository.emitMovementDetected(speed)
+                        Log.d(TAG, "Movement detected with speed: $speed m/s")
                     }
                 }
 
@@ -83,12 +67,16 @@ class WearableMessageListenerService : WearableListenerService() {
                         val heartRate = parts[0].toIntOrNull() ?: 0
                         val count = parts[1].toIntOrNull() ?: 0
                         val mean = parts[2].toFloatOrNull() ?: 0.0f
-                        Log.d( TAG, "Heart Rate Summary - Rate: $heartRate, Count: $count, Mean: $mean" )
+                        Log.d(
+                            TAG,
+                            "Heart Rate Summary - Rate: $heartRate, Count: $count, Mean: $mean"
+                        )
                         watchMetricsRepository.emitHeartRate(heartRate)
                     } else {
                         Log.w(TAG, "Invalid heart rate summary format: $payload")
                     }
                 }
+
                 else -> {
                     Log.w(TAG, "Unknown message path: ${messageEvent.path}")
                 }

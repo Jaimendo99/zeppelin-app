@@ -1,12 +1,14 @@
 package com.zeppelin.app.screens._common.data
 
 
+import android.R
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import java.io.Serial
 
 @Serializable
 sealed interface WebSocketEvent
@@ -66,6 +68,26 @@ data class PomodoroSessionEndMessage(
 ) : WebSocketEvent
 
 @Serializable
+@SerialName("POMODORO_PAUSED")
+data class PomodoroPausedMessage(
+    @SerialName("seconds_left") val secondsLeft: Int,
+    @SerialName("pause_time") val pauseTime: Long,
+//    @SerialName("session_id") val sessionId: Int,
+    val senderId: String,
+) : WebSocketEvent
+
+@Serializable
+@SerialName("POMODORO_RESTART")
+data class PomodoroRestartMessage(
+    @SerialName("seconds_left") val secondsLeft: Int,
+    @SerialName("start_time") val startTime :Long,
+//    @SerialName("session_id") val sessionId: Int,
+    @SerialName("senderId")  val senderId: String,
+) : WebSocketEvent
+
+
+
+@Serializable
 @SerialName("client_hello") // Example type name
 data class ClientHelloMessage(
     val clientId: String
@@ -79,19 +101,17 @@ data class UnknownEvent(
 ) : WebSocketEvent
 
 @Serializable
-@SerialName("lock_task_removed")
+@SerialName("UNPIN_SCREEN")
 data class LockTaskRemovedEvent(
     @SerialName("remove_at") val removedAt: Long,
 ) : WebSocketEvent
 
 
 @Serializable
-@SerialName("lock_task_on")
+@SerialName("PIN_SCREEN")
 data class LockTaskOnEvent(
     @SerialName("on_at") val onAt: Long,
 ) : WebSocketEvent
-
-
 
 
 @Serializable
@@ -158,6 +178,8 @@ val AppJsonModule = SerializersModule {
         subclass(WeakRssiEvent::class)
         subclass(StrongRssiEvent::class)
         subclass(LockTaskOnEvent::class)
+        subclass(PomodoroPausedMessage::class)
+        subclass(PomodoroRestartMessage::class)
     }
 }
 

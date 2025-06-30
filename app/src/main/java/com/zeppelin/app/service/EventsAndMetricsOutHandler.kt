@@ -50,11 +50,14 @@ class EventsAndMetricsOutHandler(
         private const val MOVEMENT_WINDOW_SIZE = 10
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var currentScope: CoroutineScope? = null
 
     fun start() {
         Log.d(TAG, "EventsAndMetricsOutHandler started")
-        Log.d(TAG, "c initialized")
+        currentScope?.cancel()
+        currentScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        Log.d(TAG, "EventsAndMetricsOutHandler scope created for this run.")
+
         handleLockTaskModeStatus()
         handleWatchLinkStatus()
         handleHeartRate()
@@ -63,95 +66,90 @@ class EventsAndMetricsOutHandler(
         handleRssi()
     }
 
-
-    /**
-     * Handles changes in the Lock Task Mode status (screen pinning).
-     */
     private fun handleLockTaskModeStatus() {
         Log.d(TAG, "Handling LockTaskModeStatus changes")
-        scope.launch {
+        currentScope?.launch {
             var lastLockStatus: LockTaskModeStatus? = null
             sessionEventsManager.lockTaskModeStatus.distinctUntilChanged().collect { status ->
                 Log.d(TAG, "LockTaskModeStatus changed: $status, last was: $lastLockStatus")
-                    getReportData()?.let { reportData ->
-                        when (status) {
-                            LockTaskModeStatus.LOCK_TASK_MODE_NONE -> {
-                                if (lastLockStatus != LockTaskModeStatus.LOCK_TASK_MODE_NONE) {
-                                    webSocketClient.sendEvent(
-                                        LockTaskRemovedEvent(
-                                            System.currentTimeMillis()
-                                        )
-                                    )
-                                    analyticsClient.addReport(
-                                        reportData.copy(
-                                            type = ReportType.UNPIN_SCREEN,
-                                            body = UnPinScreen(System.currentTimeMillis() )
-                                        )
-                                    )
-                                }
-                                lastLockStatus = status
-                            }
-
-                            LockTaskModeStatus.LOCK_TASK_MODE_PINNED -> {
-                                if (lastLockStatus != LockTaskModeStatus.LOCK_TASK_MODE_PINNED) {
-                                    webSocketClient.sendEvent(
-                                        LockTaskOnEvent(
-                                            System.currentTimeMillis()
-                                        )
-                                    )
-                                }
-                                lastLockStatus = status
-                            }
-                            else -> { Log.d(TAG, "Unknown LockTaskModeStatus: $status") }
-                        }
-                    }
-                }
-        }
-    }
-
-    /**
-     * Handles the connection status of the wearable device.
-     */
-    private fun handleWatchLinkStatus() {
-        Log.d(TAG, "Handling WatchLink connection status")
-        scope.launch {
-            watchLinkRepository.isConnectedToWatch.distinctUntilChanged().collect { isConnected ->
-                Log.d(TAG, "Watch connection status changed: $isConnected")
-                    getReportData()?.let { reportData ->
-                        if (isConnected) {
-                            webSocketClient.sendEvent(
-                                WearableReconnectedEvent(
-                                    System.currentTimeMillis()
-                                )
-                            )
-                        } else {
-                            webSocketClient.sendEvent(
-                                WearableDisconnectedEvent(
-                                    System.currentTimeMillis()
-                                )
-                            )
-                            analyticsClient.addReport(
-                                reportData.copy(
-                                    type = ReportType.WEARABLE_DISCONNECTED,
-                                    body = WearableDisconnected(
+                getReportData()?.let { reportData ->
+                    when (status) {
+                        LockTaskModeStatus.LOCK_TASK_MODE_NONE -> {
+                            if (lastLockStatus != LockTaskModeStatus.LOCK_TASK_MODE_NONE) {
+                                webSocketClient.sendEvent(
+                                    LockTaskRemovedEvent(
                                         System.currentTimeMillis()
                                     )
                                 )
-                            )
+                                analyticsClient.addReport(
+                                    reportData.copy(
+                                        type = ReportType.UNPIN_SCREEN,
+                                        body = UnPinScreen(System.currentTimeMillis())
+                                    )
+                                )
+                            }
+                            lastLockStatus = status
+                        }
+
+                        LockTaskModeStatus.LOCK_TASK_MODE_PINNED -> {
+                            if (lastLockStatus != LockTaskModeStatus.LOCK_TASK_MODE_PINNED) {
+                                webSocketClient.sendEvent(
+                                    LockTaskOnEvent(
+                                        System.currentTimeMillis()
+                                    )
+                                )
+                            }
+                            lastLockStatus = status
+                        }
+
+                        else -> {
+                            Log.d(TAG, "Unknown LockTaskModeStatus: $status")
                         }
                     }
                 }
-        }
+            }
+        } ?: Log.e(TAG, "handleLockTaskModeStatus: currentScope is null, cannot launch coroutine.")
     }
 
-    /**
-     * Handles heart rate data from the wearable.
-     */
+    private fun handleWatchLinkStatus() {
+        Log.d(TAG, "Handling WatchLink connection status")
+        currentScope?.launch {
+            watchLinkRepository.isConnectedToWatch.distinctUntilChanged().collect { isConnected ->
+                Log.d(TAG, "Watch connection status changed: $isConnected")
+                getReportData()?.let { reportData ->
+                    if (isConnected) {
+                        webSocketClient.sendEvent(
+                            WearableReconnectedEvent(
+                                System.currentTimeMillis()
+                            )
+                        )
+                    } else {
+                        webSocketClient.sendEvent(
+                            WearableDisconnectedEvent(
+                                System.currentTimeMillis()
+                            )
+                        )
+                        analyticsClient.addReport(
+                            reportData.copy(
+                                type = ReportType.WEARABLE_DISCONNECTED,
+                                body = WearableDisconnected(
+                                    System.currentTimeMillis()
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        } ?: Log.e(TAG, "handleWatchLinkStatus: currentScope is null, cannot launch coroutine.")
+    }
+
     private fun handleHeartRate() {
         Log.d(TAG, "Handling heart rate data")
-        scope.launch {
-            watchMetricsRepository.hearRate.filterNotNull().windowed(HEART_RATE_WINDOW_SIZE).collect { heartRateList ->
-                Log.d(TAG, "Heart rate data received: $heartRateList")
+        currentScope?.launch {
+            watchMetricsRepository.hearRate.filterNotNull()
+                .windowed(HEART_RATE_WINDOW_SIZE)
+                .collect { heartRateList ->
+                    Log.d(TAG, "Heart rate data received: $heartRateList")
                     getReportData()?.let { reportData ->
                         analyticsClient.addReport(
                             reportData.copy(
@@ -168,17 +166,16 @@ class EventsAndMetricsOutHandler(
                         )
                     }
                 }
-        }
+        } ?: Log.e(TAG, "handleHeartRate: currentScope is null, cannot launch coroutine.")
     }
 
-    /**
-     * Handles movement data from the wearable.
-     */
     private fun handleMovement() {
         Log.d(TAG, "Handling movement data")
-        scope.launch {
-            watchMetricsRepository.movementDetected.filterNotNull().windowed(MOVEMENT_WINDOW_SIZE).collect { movementList ->
-                Log.d(TAG, "Movement detected: $movementList")
+        currentScope?.launch {
+            watchMetricsRepository.movementDetected.filterNotNull()
+                .windowed(MOVEMENT_WINDOW_SIZE)
+                .collect { movementList ->
+                    Log.d(TAG, "Movement detected: $movementList")
                     getReportData()?.let { reportData ->
                         val movement = movementList.average()
                         analyticsClient.addReport(
@@ -192,15 +189,12 @@ class EventsAndMetricsOutHandler(
                         )
                     }
                 }
-        }
+        } ?: Log.e(TAG, "handleMovement: currentScope is null, cannot launch coroutine.")
     }
 
-    /**
-     * Handles the on/off wrist status of the wearable.
-     */
     private fun handleOffWrist() {
         Log.d(TAG, "Handling on/off wrist status")
-        scope.launch {
+        currentScope?.launch {
             var lastOnWrist: Boolean = true
             sessionEventsManager.isOnWrist.filterNotNull().collect { isOnWrist ->
                 Log.d(TAG, "On-wrist status changed: $isOnWrist, last was: $lastOnWrist")
@@ -226,42 +220,42 @@ class EventsAndMetricsOutHandler(
                     }
                 }
             }
-        }
+        } ?: Log.e(TAG, "handleOffWrist: currentScope is null, cannot launch coroutine.")
     }
 
-    /**
-     * Handles RSSI (signal strength) data from the wearable.
-     */
     private fun handleRssi() {
         Log.d(TAG, "Handling RSSI data")
-        scope.launch {
+        currentScope?.launch {
             var wasLastWeak: Boolean? = false
-            watchMetricsRepository.rssi.filterNotNull().windowed(RSSI_WINDOW_SIZE).collect { rssiList ->
-                val rssi = rssiList.average().toInt()
-                Log.d(TAG, "RSSI value received: $rssi, last was weak: $wasLastWeak")
-                getReportData()?.let { reportData ->
-                    if (wasLastWeak == false && rssi < -90) {
-                        Log.d(TAG, "Weak RSSI detected: $rssi")
-                        webSocketClient.sendEvent(WeakRssiEvent(rssi))
-                        analyticsClient.addReport(
-                            reportData.copy(
-                                type = ReportType.WEAK_RSSI,
-                                body = WeakRssi(rssi)
+            watchMetricsRepository.rssi.filterNotNull().windowed(RSSI_WINDOW_SIZE)
+                .collect { rssiList ->
+                    val rssi = rssiList.average().toInt()
+                    Log.d(TAG, "RSSI value received: $rssi, last was weak: $wasLastWeak")
+                    getReportData()?.let { reportData ->
+                        if (wasLastWeak == false && rssi < -90) {
+                            Log.d(TAG, "Weak RSSI detected: $rssi")
+                            webSocketClient.sendEvent(WeakRssiEvent(rssi))
+                            analyticsClient.addReport(
+                                reportData.copy(
+                                    type = ReportType.WEAK_RSSI,
+                                    body = WeakRssi(rssi)
+                                )
                             )
-                        )
-                        wasLastWeak = true
-                    } else if (wasLastWeak == true && rssi >= -90) {
-                        webSocketClient.sendEvent(StrongRssiEvent(rssi))
-                        wasLastWeak = false
+                            wasLastWeak = true
+                        } else if (wasLastWeak == true && rssi >= -90) {
+                            webSocketClient.sendEvent(StrongRssiEvent(rssi))
+                            wasLastWeak = false
+                        }
                     }
                 }
-            }
-        }
+        } ?: Log.e(TAG, "handleRssi: currentScope is null, cannot launch coroutine.")
     }
 
     fun stop() {
         Log.d(TAG, "Stopping EventsAndMetricsOutHandler")
-        scope.cancel()
+        currentScope?.cancel()
+        currentScope = null
+        Log.d(TAG, "EventsAndMetricsOutHandler scope cancelled and cleared.")
     }
 
     private suspend fun getReportData(): ReportData? {

@@ -238,6 +238,38 @@ class SessionEventsManager {
         }
     }
 
+    fun handlePomodoroPaused(pausedMessage: PomodoroPausedMessage ){
+        Log.d(TAG, "Pomodoro paused: $pausedMessage")
+        if (_pomodoroState.value.isRunning) {
+            stopTimer() // Stop the timer when paused
+            _pomodoroState.update { it.copy(isRunning = false, remainingSeconds = pausedMessage.secondsLeft) }
+            Log.d(TAG, "Pomodoro timer stopped due to pause.")
+        } else {
+            Log.w(TAG, "Received pause event but timer is not running.")
+        }
+    }
+
+    fun handlePomodoroResumed(scope: CoroutineScope, restartMessage: PomodoroRestartMessage) {
+        Log.d(TAG, "Pomodoro resumed: $restartMessage")
+        if (!_pomodoroState.value.isRunning) {
+            val newRemaining = restartMessage.secondsLeft
+            _pomodoroState.update {
+                it.copy(
+                    isRunning = true,
+                    remainingSeconds = newRemaining,
+                    timerDisplay = newRemaining.formatTime(),
+                    timerDigits = newRemaining.toTimerDigits(),
+                    currentPhase = CurrentPhase.WORK,
+                )
+            }
+            currentRemainingSeconds.set(newRemaining)
+            startTimer(scope)
+            Log.d(TAG, "Pomodoro timer restarted with $newRemaining seconds.")
+        } else {
+            Log.w(TAG, "Received resume event but timer is already running.")
+        }
+    }
+
     fun handleClientHello(clientHello: ClientHelloMessage) {
         Log.d(TAG, "Client hello: $clientHello")
     }
@@ -245,6 +277,8 @@ class SessionEventsManager {
     fun handleUnknownEvent(unknownEvent: UnknownEvent) {
         Log.w(TAG, "Unknown event: ${unknownEvent.rawText}")
     }
+
+
 
     // --- Timer Control ---
 
@@ -291,6 +325,7 @@ class SessionEventsManager {
             }
         }
     }
+
 
     fun stopTimer() {
         timerJob?.cancel()

@@ -2,6 +2,7 @@ package com.zeppelin.app
 
 import android.Manifest
 import android.app.ActivityManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -18,9 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.zeppelin.app.screens._common.data.PinningUiEvent
 import com.zeppelin.app.screens._common.data.SessionEventsManager
@@ -28,29 +31,34 @@ import com.zeppelin.app.screens._common.ui.ScaffoldViewModel
 import com.zeppelin.app.screens._common.ui.ZeppelinScaffold
 import com.zeppelin.app.screens.auth.domain.AuthManager
 import com.zeppelin.app.screens.nav.NavigationGraph
+import com.zeppelin.app.service.LiveSessionService
 import com.zeppelin.app.service.distractionDetection.DistractionDetectionManager
 import com.zeppelin.app.ui.theme.ZeppelinTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
+
+data class NavigationCommand(val route: String, val id: String)
 
 class MainActivity : ComponentActivity() {
     private val authManager: AuthManager by inject()
     private val sessionEventsManager: SessionEventsManager by inject()
     private val distractionDetectionManager: DistractionDetectionManager by inject()
-    private val activityManager by lazy {
-        getSystemService(ACTIVITY_SERVICE) as ActivityManager
-    }
+    private val activityManager by lazy { getSystemService(ACTIVITY_SERVICE) as ActivityManager }
     private var isAppCurrentlyPinned = false
+    private lateinit var navController: NavHostController
 
-    private val requestPermissionsLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissions ->
+    // StateFlow to hold navigation commands
+    private val navigationCommand = MutableStateFlow<NavigationCommand?>(null)
+
+    private val requestPermissionsLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             permissions.entries.forEach { entry ->
-                Log.i( "PermissionRequest", "Permission: ${entry.key}, Granted: ${entry.value}" )
+                Log.i("PermissionRequest", "Permission: ${entry.key}, Granted: ${entry.value}")
                 if (!entry.value) {
-                    Log.w( "PermissionRequest", "Permission ${entry.key} was denied." )
+                    Log.w("PermissionRequest", "Permission ${entry.key} was denied.")
                 }
             }
         }
@@ -59,11 +67,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState) // Call super.onCreate first
 
+        handleIntent(intent)
+
         val keepSplash: MutableStateFlow<Boolean?> = MutableStateFlow(null)
 
         installSplashScreen().apply {
             setKeepOnScreenCondition {
-                keepSplash.value == null || keepSplash.value == true // Keep splash if null or explicitly true
+                keepSplash.value == null ||
+                        keepSplash.value == true // Keep splash if null or explicitly true
             }
         }
 
@@ -97,11 +108,13 @@ class MainActivity : ComponentActivity() {
 
                         is PinningUiEvent.StopPinning -> {
                             try {
-                                if (activityManager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
+                                if (activityManager.lockTaskModeState !=
+                                    ActivityManager.LOCK_TASK_MODE_NONE
+                                ) {
                                     stopLockTask()
                                     Log.d("MainActivity", "Called stopLockTask()")
                                 } else {
-                                    Log.d( "MainActivity", "Skipped stopLockTask app is not pinned.")
+                                    Log.d("MainActivity", "Skipped stopLockTask app is not pinned.")
                                 }
                                 isAppCurrentlyPinned = false // App initiated/acknowledged unpinning
                             } catch (e: Exception) {
@@ -115,14 +128,18 @@ class MainActivity : ComponentActivity() {
             // e.g. in MainActivity.onCreate
 
             ZeppelinTheme(dynamicColor = false) {
-                val navController = rememberNavController()
-                ZeppelinScaffold(
-                    koinViewModel<ScaffoldViewModel>(),
-                    navController
-                ) { innerPadding, navHostController ->
+                navController = rememberNavController()
+                val command by navigationCommand.collectAsState()
+
+                ZeppelinScaffold(koinViewModel<ScaffoldViewModel>(), navController) { innerPadding,
+                                                                                      navHostController ->
                     NavigationGraph(
                         Modifier.padding(innerPadding),
                         navHostController,
+                        navigationCommand = command,
+                        onNavigationHandled = {
+                            onNavigationHandled()
+                        }
                     )
                 }
             }
@@ -134,28 +151,57 @@ class MainActivity : ComponentActivity() {
         checkAndRequestPermissions()
         checkAndRequestBlePerms()
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Log.d("MainActivityIntent", "onNewIntent called with intent: $intent")
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        val route = intent?.getStringExtra(LiveSessionService.EXTRA_DESTINATION_ROUTE)
+        val id = intent?.getStringExtra(LiveSessionService.EXTRA_COURSE_ID)
+
+        if (route != null && id != null) {
+            navigationCommand.update { NavigationCommand(route, id) }
+        }
+    }
+
+    private fun onNavigationHandled() {
+        navigationCommand.value = null
+    }
+
 // In MainActivity.kt
 
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
         // For Android 12 (S) and above
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
 
         // For Android 13 (T) and above (Notifications for the service)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            Log.i("PermissionRequest", "Requesting permissions: ${permissionsToRequest.joinToString()}")
+            Log.i(
+                "PermissionRequest",
+                "Requesting permissions: ${permissionsToRequest.joinToString()}"
+            )
             requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             Log.i("PermissionRequest", "All necessary runtime permissions are already granted.")
@@ -167,30 +213,31 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
             val denied = results.filterValues { !it }.keys
             if (denied.isEmpty()) {
-                Log.d("MainActivity","All BLE perms granted")
+                Log.d("MainActivity", "All BLE perms granted")
                 // you can now safely start LiveSessionService
             } else {
-                Log.e("MainActivity","BLE perms denied: $denied")
+                Log.e("MainActivity", "BLE perms denied: $denied")
             }
         }
 
     private fun checkAndRequestBlePerms() {
-        val toRequest = mutableListOf<String>().apply {
-            add(Manifest.permission.BLUETOOTH_SCAN)
-            add(Manifest.permission.BLUETOOTH_CONNECT)
-        }.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
+        val toRequest =
+            mutableListOf<String>()
+                .apply {
+                    add(Manifest.permission.BLUETOOTH_SCAN)
+                    add(Manifest.permission.BLUETOOTH_CONNECT)
+                }
+                .filter {
+                    ContextCompat.checkSelfPermission(this, it) !=
+                            PackageManager.PERMISSION_GRANTED
+                }
         if (toRequest.isNotEmpty()) {
             permLauncher.launch(toRequest.toTypedArray())
         } else {
-            Log.d("MainActivity","BLE perms already granted")
+            Log.d("MainActivity", "BLE perms already granted")
         }
     }
 }
-
-
-
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 data class SharedTransitionScopes(
@@ -199,6 +246,4 @@ data class SharedTransitionScopes(
 )
 
 val LocalSharedTransitionScopes =
-    compositionLocalOf<SharedTransitionScopes> {
-        error("SharedTransitionScopes not provided")
-    }
+    compositionLocalOf<SharedTransitionScopes> { error("SharedTransitionScopes not provided") }
